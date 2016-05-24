@@ -1,0 +1,7 @@
+[run]
+branch = True
+source = ms_ext_config
+omit = ms_ext_config/openstack/*
+
+[report]
+ignore_errors = True
