@@ -4,6 +4,7 @@ import logging
 import os
 import pwd
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -17,6 +18,7 @@ import yaml
 
 ENV = 'default'
 GLOBALS_PATH = '/etc/mcp/globals/globals.yaml'
+NETWORK_TOPOLOGY_FILE = "/etc/mcp/globals/network_topology.yaml"
 WORKFLOW_PATH = '/etc/mcp/role/role.yaml'
 FILES_DIR = '/etc/mcp/files'
 
@@ -182,6 +184,16 @@ def main():
     with open(GLOBALS_PATH) as f:
         variables = yaml.load(f)
         LOG.debug('Global variables:\n%s', variables)
+
+    LOG.info("Getting network topology from %s", NETWORK_TOPOLOGY_FILE)
+    with open(NETWORK_TOPOLOGY_FILE) as f:
+        topology = yaml.load(f)
+    if topology:
+        hostname = socket.gethostname()
+        if topology.get("network", {}).get(hostname):
+            network_info = topology["network"][hostname]
+            LOG.debug("Network information\n%s", yaml.dump(network_info))
+            variables["network_topology"] = network_info
 
     LOG.info("Getting workflow from %s", WORKFLOW_PATH)
     with open(WORKFLOW_PATH) as f:
