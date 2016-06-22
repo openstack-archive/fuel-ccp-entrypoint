@@ -19,7 +19,7 @@ import yaml
 ENV = 'default'
 GLOBALS_PATH = '/etc/mcp/globals/globals.yaml'
 NETWORK_TOPOLOGY_FILE = "/etc/mcp/globals/network_topology.yaml"
-WORKFLOW_PATH = '/etc/mcp/role/role.yaml'
+WORKFLOW_PATH_TEMPLATE = '/etc/mcp/role/%s.yaml'
 FILES_DIR = '/etc/mcp/files'
 
 LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
@@ -145,7 +145,6 @@ def wait_for_dependencies(dependencies, etcd_client):
 
 def run_cmd(cmd, variables, user=None):
     rendered_cmd = jinja_render_cmd(cmd, variables)
-    LOG.debug('Executing cmd:\n%s', rendered_cmd)
     proc = execute_cmd(rendered_cmd, user)
     proc.communicate()
     if proc.returncode != 0:
@@ -180,11 +179,12 @@ def run_daemon(cmd, variables, user=None):
 
 
 def main():
+    role_name = sys.argv[1]
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = yaml.load(f)
-        LOG.debug('Global variables:\n%s', variables)
-
+    variables['role_name'] = role_name
+    LOG.debug('Global variables:\n%s', variables)
     LOG.info("Getting network topology from %s", NETWORK_TOPOLOGY_FILE)
     with open(NETWORK_TOPOLOGY_FILE) as f:
         topology = yaml.load(f)
@@ -200,8 +200,9 @@ def main():
         LOG.debug("Network information\n%s", yaml.dump(network_info))
         variables["network_topology"] = network_info
 
-    LOG.info("Getting workflow from %s", WORKFLOW_PATH)
-    with open(WORKFLOW_PATH) as f:
+    workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
+    LOG.info("Getting workflow from %s", workflow_path)
+    with open(workflow_path) as f:
         workflow = yaml.load(f).get('workflow')
         LOG.debug('Workflow template:\n%s', workflow)
 
