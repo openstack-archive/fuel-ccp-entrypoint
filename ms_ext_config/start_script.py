@@ -192,8 +192,14 @@ def main():
         hostname = socket.gethostname()
         if topology.get("network", {}).get(hostname):
             network_info = topology["network"][hostname]
-            LOG.debug("Network information\n%s", yaml.dump(network_info))
-            variables["network_topology"] = network_info
+        else:
+            ip = socket.gethostbyname(socket.gethostname())
+            LOG.debug("Can't find hostname '%s' in network topology file",
+                      socket.gethostname())
+            network_info = {"private": {"iface": "eth0", "address": ip}}
+
+    LOG.debug("Network information\n%s", yaml.dump(network_info))
+    variables["network_topology"] = network_info
 
     LOG.info("Getting workflow from %s", WORKFLOW_PATH)
     with open(WORKFLOW_PATH) as f:
