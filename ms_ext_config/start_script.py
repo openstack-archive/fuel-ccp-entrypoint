@@ -4,13 +4,13 @@ import logging
 import os
 import pwd
 import signal
-import socket
 import subprocess
 import sys
 import time
 
 import etcd
 import jinja2
+import netifaces
 import six
 from six.moves.urllib import parse
 import yaml
@@ -18,7 +18,7 @@ import yaml
 
 ENV = 'default'
 GLOBALS_PATH = '/etc/mcp/globals/globals.yaml'
-NETWORK_TOPOLOGY_FILE = "/etc/mcp/globals/network_topology.yaml"
+META_FILE = "/etc/mcp/meta/meta.yaml"
 WORKFLOW_PATH_TEMPLATE = '/etc/mcp/role/%s.yaml'
 FILES_DIR = '/etc/mcp/files'
 
@@ -28,6 +28,60 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
+
+
+def get_ip_address(iface):
+    """Get IP address of the interface connected to the network.
+
+    If there is no such an interface, then localhost is returned.
+    """
+
+    if iface not in netifaces.interfaces():
+        LOG.warning("Can't find interface '%s' in the host list of interfaces",
+                    iface)
+        return '127.0.0.1'
+
+    address_family = netifaces.AF_INET
+
+    if address_family not in netifaces.ifaddresses(iface):
+        LOG.warning("Interface '%s' doesnt configured with ipv4 address",
+                    iface)
+        return '127.0.0.1'
+
+    for ifaddress in netifaces.ifaddresses(iface)[address_family]:
+        if 'addr' in ifaddress:
+            return ifaddress['addr']
+        else:
+            LOG.warning("Can't find ip addr for interface '%s'", iface)
+            return '127.0.0.1'
+
+
+def create_network_topology(meta_info, variables):
+    """Create a network topology config.
+
+       These config could be used in jinja2 templates to fetch needed variables
+       Example:
+       {{ network_topology["private"]["address"] }}
+       {{ network_topology["public"]["iface"] }}
+    """
+
+    network_info = {}
+    if meta_info["host-net"]:
+        LOG.debug("Found 'host-net' flag, trying to fetch host network")
+        priv_iface = variables["private_interface"]
+        pub_iface = variables["public_interface"]
+        network_info = {"private": {"iface": priv_iface,
+                                    "address": get_ip_address(priv_iface)},
+                        "public": {"iface": pub_iface,
+                                   "address": get_ip_address(pub_iface)}}
+    else:
+        LOG.debug("Can't find 'host-net' flag, fetching ip only from eth0")
+        network_info = {"private": {"iface": "eth0",
+                                    "address": get_ip_address("eth0")},
+                        "public": {"iface": "eth0",
+                                   "address": get_ip_address("eth0")}}
+    LOG.debug("Network information\n%s", yaml.dump(network_info))
+    return network_info
 
 
 def etcd_path(*path):
@@ -183,22 +237,14 @@ def main():
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = yaml.load(f)
+    with open(META_FILE) as f:
+        meta_info = yaml.load(f)
     variables['role_name'] = role_name
     LOG.debug('Global variables:\n%s', variables)
-    LOG.info("Getting network topology from %s", NETWORK_TOPOLOGY_FILE)
-    with open(NETWORK_TOPOLOGY_FILE) as f:
-        topology = yaml.load(f)
-    if topology:
-        hostname = socket.gethostname()
-        if topology.get("network", {}).get(hostname):
-            network_info = topology["network"][hostname]
-        else:
-            ip = socket.gethostbyname(socket.gethostname())
-            LOG.debug("Can't find hostname '%s' in network topology file",
-                      socket.gethostname())
-            network_info = {"private": {"iface": "eth0", "address": ip}}
-        LOG.debug("Network information\n%s", yaml.dump(network_info))
-        variables["network_topology"] = network_info
+    LOG.debug("Getting meta info from %s", META_FILE)
+    LOG.debug("Creating network topology configuration")
+    variables["network_topology"] = create_network_topology(meta_info,
+                                                            variables)
 
     workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
     LOG.info("Getting workflow from %s", workflow_path)

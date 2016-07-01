@@ -7,3 +7,4 @@ Jinja2>=2.8  # BSD License (3 clause)
 python-etcd
 PyYAML>=3.1.0  # MIT
 six>=1.9.0  # MIT
+netifaces>=0.10.4  # MIT
