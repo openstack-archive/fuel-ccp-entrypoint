@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import functools
 import logging
 import os
 import pwd
@@ -28,6 +29,25 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
+
+
+def retry(f):
+    attempts = VARIABLES.get('etcd_connection_attempts', 10)
+    delay = VARIABLES.get('etcd_connection_delay', 5)
+
+    @functools.wraps(f)
+    def wrap(*args, **kwargs):
+        attempts_left = attempts
+        while attempts_left > 1:
+            try:
+                return f(*args, **kwargs)
+            except etcd.EtcdException as e:
+                LOG.warning('Etcd is not ready: %s', str(e))
+                LOG.warning('Retrying in %d seconds...', delay)
+                time.sleep(delay)
+                attempts_left -= 1
+        return f(*args, **kwargs)
+    return wrap
 
 
 def get_ip_address(iface):
@@ -88,6 +108,7 @@ def etcd_path(*path):
     return os.path.join('/mcp', namespace, 'status', 'global', *path)
 
 
+@retry
 def set_status_done(service_name, etcd_client):
     key = etcd_path(service_name, "done")
     etcd_client.set(key, "1")
@@ -174,28 +195,34 @@ def create_files(files):
         LOG.info("File %s has been created", file_path)
 
 
+@retry
 def get_etcd_client(etcd_urls):
     etcd_machines = []
     for etcd_machine in etcd_urls.split(","):
         parsed_url = parse.urlparse(etcd_machine)
         etcd_machines.append((parsed_url.hostname, parsed_url.port))
 
-    return etcd.Client(host=tuple(etcd_machines), allow_reconnect=True)
+    return etcd.Client(host=tuple(etcd_machines), allow_reconnect=True,
+                       read_timeout=2)
+
+
+@retry
+def check_dependence(dep, etcd_client):
+    LOG.debug("Waiting for \"%s\" dependency", dep)
+    path = etcd_path(dep, "done")
+    LOG.debug("Checking that path exists %s", path)
+    while True:
+        if path in etcd_client:
+            LOG.debug("Dependency \"%s\" is in \"done\" state", dep)
+            break
+        LOG.debug("Dependency \"%s\" is not ready yet, retrying", dep)
+        time.sleep(5)
 
 
 def wait_for_dependencies(dependencies, etcd_client):
     LOG.info('Waiting for dependencies')
     for dep in dependencies:
-        LOG.debug("Waiting for \"%s\" dependency", dep)
-        path = etcd_path(dep, "done")
-        LOG.debug("Checking that path exists %s", path)
-        while True:
-            if path in etcd_client:
-                LOG.debug("Dependency \"%s\" is in \"done\" state", dep)
-                break
-            LOG.debug("Dependency \"%s\" is not ready yet, retrying", dep)
-            time.sleep(5)
-    LOG.info("All dependencies are in \"done\" state")
+        check_dependence(dep, etcd_client)
 
 
 def run_cmd(cmd, user=None):
