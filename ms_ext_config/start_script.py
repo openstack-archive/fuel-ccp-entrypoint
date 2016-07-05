@@ -16,7 +16,7 @@ from six.moves.urllib import parse
 import yaml
 
 
-ENV = 'default'
+VARIABLES = {}
 GLOBALS_PATH = '/etc/mcp/globals/globals.yaml'
 META_FILE = "/etc/mcp/meta/meta.yaml"
 WORKFLOW_PATH_TEMPLATE = '/etc/mcp/role/%s.yaml'
@@ -56,7 +56,7 @@ def get_ip_address(iface):
             return '127.0.0.1'
 
 
-def create_network_topology(meta_info, variables):
+def create_network_topology(meta_info):
     """Create a network topology config.
 
        These config could be used in jinja2 templates to fetch needed variables
@@ -65,11 +65,10 @@ def create_network_topology(meta_info, variables):
        {{ network_topology["public"]["iface"] }}
     """
 
-    network_info = {}
     if meta_info["host-net"]:
         LOG.debug("Found 'host-net' flag, trying to fetch host network")
-        priv_iface = variables["private_interface"]
-        pub_iface = variables["public_interface"]
+        priv_iface = VARIABLES["private_interface"]
+        pub_iface = VARIABLES["public_interface"]
         network_info = {"private": {"iface": priv_iface,
                                     "address": get_ip_address(priv_iface)},
                         "public": {"iface": pub_iface,
@@ -85,12 +84,14 @@ def create_network_topology(meta_info, variables):
 
 
 def etcd_path(*path):
-    return os.path.join('/mcp', ENV, 'status', 'global', *path)
+    namespace = VARIABLES.get('namespace', '')
+    return os.path.join('/mcp', namespace, 'status', 'global', *path)
 
 
 def set_status_done(service_name, etcd_client):
     key = etcd_path(service_name, "done")
     etcd_client.set(key, "1")
+    LOG.info('Status for "%s" was set to "done"', service_name)
 
 
 def cmd_str(cmd):
@@ -130,21 +131,21 @@ def str_to_bool(text):
     return text is not None and text.lower() in ['true', 'yes']
 
 
-def jinja_render_file(path, variables):
+def jinja_render_file(path):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(
         os.path.dirname(path)))
     env.filters['bool'] = str_to_bool
 
-    content = env.get_template(os.path.basename(path)).render(variables)
+    content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
     return content
 
 
-def jinja_render_cmd(cmd, variables):
-    return jinja2.Environment().from_string(cmd).render(variables)
+def jinja_render_cmd(cmd):
+    return jinja2.Environment().from_string(cmd).render(VARIABLES)
 
 
-def create_files(files, variables):
+def create_files(files):
     LOG.info("Creating files")
     for config in files:
         file_template = os.path.join(FILES_DIR, config['name'])
@@ -156,7 +157,7 @@ def create_files(files, variables):
             os.makedirs(os.path.dirname(file_path))
 
         with open(file_path, 'w') as f:
-            rendered_config = jinja_render_file(file_template, variables)
+            rendered_config = jinja_render_file(file_template)
             f.write(rendered_config)
 
         user = config.get('user')
@@ -197,17 +198,17 @@ def wait_for_dependencies(dependencies, etcd_client):
     LOG.info("All dependencies are in \"done\" state")
 
 
-def run_cmd(cmd, variables, user=None):
-    rendered_cmd = jinja_render_cmd(cmd, variables)
+def run_cmd(cmd, user=None):
+    rendered_cmd = jinja_render_cmd(cmd)
     proc = execute_cmd(rendered_cmd, user)
     proc.communicate()
     if proc.returncode != 0:
         raise RuntimeError("Command exited with code: %d" % proc.returncode)
 
 
-def run_daemon(cmd, variables, user=None):
+def run_daemon(cmd, user=None):
     LOG.info("Starting daemon")
-    rendered_cmd = jinja_render_cmd(cmd, variables)
+    rendered_cmd = jinja_render_cmd(cmd)
     proc = execute_cmd(rendered_cmd, user)
 
     # add signal handler
@@ -233,18 +234,18 @@ def run_daemon(cmd, variables, user=None):
 
 
 def main():
+    global VARIABLES
     role_name = sys.argv[1]
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
-        variables = yaml.load(f)
+        VARIABLES = yaml.load(f)
     with open(META_FILE) as f:
         meta_info = yaml.load(f)
-    variables['role_name'] = role_name
-    LOG.debug('Global variables:\n%s', variables)
+    VARIABLES['role_name'] = role_name
+    LOG.debug('Global variables:\n%s', VARIABLES)
     LOG.debug("Getting meta info from %s", META_FILE)
     LOG.debug("Creating network topology configuration")
-    variables["network_topology"] = create_network_topology(meta_info,
-                                                            variables)
+    VARIABLES["network_topology"] = create_network_topology(meta_info)
 
     workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
     LOG.info("Getting workflow from %s", workflow_path)
@@ -253,41 +254,40 @@ def main():
         LOG.debug('Workflow template:\n%s', workflow)
 
     files = workflow.get('files', [])
-    create_files(files, variables)
+    create_files(files)
 
-    etcd_urls = variables.get('etcd_urls')
+    etcd_urls = VARIABLES.get('etcd_urls')
     if not etcd_urls:
         raise Exception("Etcd urls are not specified")
     LOG.debug("Using the following etcd urls: \"%s\"", etcd_urls)
+    etcd_client = None
 
-    etcd_client = get_etcd_client(etcd_urls)
-
-    global ENV
-    ENV = variables.get('environment', 'default')
-
-    dependencies = workflow.get('dependencies', [])
-    wait_for_dependencies(dependencies, etcd_client)
+    dependencies = workflow.get('dependencies')
+    if dependencies:
+        etcd_client = get_etcd_client(etcd_urls)
+        wait_for_dependencies(dependencies, etcd_client)
 
     pre_commands = workflow.get('pre', [])
     LOG.info('Runnning pre commands')
     for cmd in pre_commands:
-        run_cmd(cmd.get('command'), variables, cmd.get('user'))
+        run_cmd(cmd.get('command'), cmd.get('user'))
 
     daemon = workflow.get('daemon')
     if daemon:
-        proc = run_daemon(daemon.get('command'), variables, daemon.get('user'))
+        proc = run_daemon(daemon.get('command'), daemon.get('user'))
 
     job = workflow.get('job')
     if job:
         LOG.info('Running single command')
-        run_cmd(job.get('command'), variables, job.get('user'))
+        run_cmd(job.get('command'), job.get('user'))
 
     LOG.info('Running post commands')
     post_commands = workflow.get('post', [])
     for cmd in post_commands:
-        run_cmd(cmd.get('command'), variables, cmd.get('user'))
+        run_cmd(cmd.get('command'), cmd.get('user'))
 
-    set_status_done(workflow.get('name'), etcd_client)
+    set_status_done(
+        workflow.get('name'), etcd_client or get_etcd_client(etcd_urls))
 
     if daemon:
         code = proc.wait()
