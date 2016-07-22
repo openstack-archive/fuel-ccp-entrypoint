@@ -129,6 +129,18 @@ def preexec_fn(user_uid, user_gid, user_home):
     return result
 
 
+def openstackclient_preexec_fn():
+    def result():
+        os.environ["OS_IDENTITY_API_VERSION"] = "3"
+        os.environ["OS_USER_DOMAIN_NAME"] = 'default'
+        os.environ["OS_PASSWORD"] = VARIABLES['openstack_user_password']
+        os.environ["OS_USERNAME"] = VARIABLES['openstack_user_name']
+        os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack_project_name']
+        os.environ["OS_AUTH_URL"] = 'http://keystone:%d/v3' % int(
+            VARIABLES['keystone_admin_port'])
+    return result
+
+
 def execute_cmd(cmd, user=None):
     LOG.debug("Executing cmd:\n%s", cmd_str(cmd))
     kwargs = {
@@ -136,9 +148,13 @@ def execute_cmd(cmd, user=None):
         "stdin": sys.stdin,
         "stdout": sys.stdout,
         "stderr": sys.stderr}
+    # If openstackclient command is being executed, appropriate environment
+    # variables will be set
+    if cmd.startswith('openstack '):
+        kwargs['preexec_fn'] = openstackclient_preexec_fn()
     # Execute as user if `user` param is provided, execute as current user
     # otherwise
-    if user:
+    elif user:
         LOG.debug('Executing as user %s', user)
         pw_record = pwd.getpwnam(user)
         user_uid = pw_record.pw_uid
