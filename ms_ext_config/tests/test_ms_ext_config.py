@@ -20,15 +20,17 @@ test_ms_ext_config
 Tests for `ms_ext_config` module.
 """
 
+import etcd
 import mock
+
 from ms_ext_config import start_script
 from ms_ext_config.tests import base
 
 
-class TestMs_ext_config(base.TestCase):
+class TestGetIpAddress(base.TestCase):
 
     def setUp(self):
-        super(TestMs_ext_config, self).setUp()
+        super(TestGetIpAddress, self).setUp()
         self.private_iface = 'eth0'
         self.public_iface = 'eth1'
 
@@ -71,3 +73,30 @@ class TestMs_ext_config(base.TestCase):
         self.assertEqual('8.8.8.8', r_value)
         self.assertEqual(1, len(m_interfaces.mock_calls))
         self.assertEqual(2, len(m_ifaddresses.mock_calls))
+
+
+class TestRetry(base.TestCase):
+    def setUp(self):
+        super(TestRetry, self).setUp()
+        start_script.VARIABLES = {
+            'etcd_connection_attempts': 3,
+            'etcd_connection_delay': 0
+        }
+
+    @start_script.retry
+    def func_test(self):
+        return self.func_ret()
+
+    def test_retry_succeeded(self):
+        self.func_ret = mock.Mock(side_effect=[
+            etcd.EtcdException('test_error'), 'test_result'])
+        self.assertEqual('test_result', self.func_test())
+        self.assertEqual(2, self.func_ret.call_count)
+
+    def test_retry_failed(self):
+        self.func_ret = mock.Mock(side_effect=[
+            etcd.EtcdException('test_error') for _ in range(3)])
+
+        self.assertRaisesRegexp(
+            etcd.EtcdException, 'test_error', self.func_test)
+        self.assertEqual(3, self.func_ret.call_count)

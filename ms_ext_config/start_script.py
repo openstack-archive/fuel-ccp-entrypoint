@@ -32,20 +32,18 @@ LOG.setLevel(logging.DEBUG)
 
 
 def retry(f):
-    attempts = VARIABLES.get('etcd_connection_attempts', 10)
-    delay = VARIABLES.get('etcd_connection_delay', 5)
-
     @functools.wraps(f)
     def wrap(*args, **kwargs):
-        attempts_left = attempts
-        while attempts_left > 1:
+        attempts = VARIABLES.get('etcd_connection_attempts', 10)
+        delay = VARIABLES.get('etcd_connection_delay', 5)
+        while attempts > 1:
             try:
                 return f(*args, **kwargs)
             except etcd.EtcdException as e:
                 LOG.warning('Etcd is not ready: %s', str(e))
                 LOG.warning('Retrying in %d seconds...', delay)
                 time.sleep(delay)
-                attempts_left -= 1
+                attempts -= 1
         return f(*args, **kwargs)
     return wrap
 
