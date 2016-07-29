@@ -31,6 +31,13 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 
+class ProcessException(Exception):
+    def __init__(self, exit_code):
+        self.exit_code = exit_code
+        self.msg = "Command exited with code %d" % self.exit_code
+        super(self, ProcessException).__init__(self.msg)
+
+
 def retry(f):
     @functools.wraps(f)
     def wrap(*args, **kwargs):
@@ -106,11 +113,36 @@ def etcd_path(*path):
     return os.path.join('/mcp', namespace, 'status', 'global', *path)
 
 
+def set_status_done(service_name):
+    return _set_status(service_name, "done")
+
+
+def set_status_ready(service_name, ttl=None):
+    return _set_status(service_name, "ready", ttl=ttl)
+
+
 @retry
-def set_status_done(service_name, etcd_client):
-    key = etcd_path(service_name, "done")
-    etcd_client.set(key, "1")
-    LOG.info('Status for "%s" was set to "done"', service_name)
+def _set_status(service_name, status, ttl=None):
+    etcd_client = get_etcd_client()
+    key = etcd_path(service_name, status)
+    etcd_client.set(key, "1", ttl=ttl)
+    LOG.info('Status for "%s" was set to "%s"', service_name, status)
+
+
+def check_is_done(service_name):
+    return _check_status(service_name, "done")
+
+
+def check_is_ready(service_name, etcd_client=None):
+    return _check_status(service_name, "ready", etcd_client)
+
+
+@retry
+def _check_status(service_name, status, etcd_client=None):
+    if not etcd_client:
+        etcd_client = get_etcd_client()
+    key = etcd_path(service_name, status)
+    return key in etcd_client
 
 
 def cmd_str(cmd):
@@ -210,24 +242,31 @@ def create_files(files):
 
 
 @retry
-def get_etcd_client(etcd_urls):
+def get_etcd_client():
     etcd_machines = []
-    for etcd_machine in etcd_urls.split(","):
-        parsed_url = parse.urlparse(etcd_machine)
-        etcd_machines.append((parsed_url.hostname, parsed_url.port))
+    # if it's etcd container use local address because container is not
+    # accessible via service due failed readiness check
+    if VARIABLES["role_name"] == "etcd":
+        etcd_machines.append(
+            (VARIABLES["network_topology"]["private"]["address"],
+             VARIABLES["etcd_client_port"]))
+    else:
+        for etcd_machine in VARIABLES["etcd_urls"].split(","):
+            parsed_url = parse.urlparse(etcd_machine)
+            etcd_machines.append((parsed_url.hostname, parsed_url.port))
+
+    etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
+    LOG.debug("Using the following etcd urls: \"%s\"", etcd_machines_str)
 
     return etcd.Client(host=tuple(etcd_machines), allow_reconnect=True,
                        read_timeout=2)
 
 
-@retry
 def check_dependence(dep, etcd_client):
     LOG.debug("Waiting for \"%s\" dependency", dep)
-    path = etcd_path(dep, "done")
-    LOG.debug("Checking that path exists %s", path)
     while True:
-        if path in etcd_client:
-            LOG.debug("Dependency \"%s\" is in \"done\" state", dep)
+        if check_is_ready(dep):
+            LOG.debug("Dependency \"%s\" is in \"ready\" state", dep)
             break
         LOG.debug("Dependency \"%s\" is not ready yet, retrying", dep)
         time.sleep(5)
@@ -244,7 +283,7 @@ def run_cmd(cmd, user=None):
     proc = execute_cmd(rendered_cmd, user)
     proc.communicate()
     if proc.returncode != 0:
-        raise RuntimeError("Command exited with code: %d" % proc.returncode)
+        raise ProcessException(proc.returncode)
 
 
 def run_daemon(cmd, user=None):
@@ -274,9 +313,17 @@ def run_daemon(cmd, user=None):
     raise RuntimeError("Process exited with code: %d" % proc.returncode)
 
 
-def main():
+def get_workflow(role_name):
+    workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
+    LOG.info("Getting workflow from %s", workflow_path)
+    with open(workflow_path) as f:
+        workflow = yaml.load(f).get('workflow')
+    LOG.debug('Workflow template:\n%s', workflow)
+    return workflow
+
+
+def setup_variables(role_name):
     global VARIABLES
-    role_name = sys.argv[1]
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         VARIABLES = yaml.load(f)
@@ -288,52 +335,99 @@ def main():
     LOG.debug("Creating network topology configuration")
     VARIABLES["network_topology"] = create_network_topology(meta_info)
 
-    workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
-    LOG.info("Getting workflow from %s", workflow_path)
-    with open(workflow_path) as f:
-        workflow = yaml.load(f).get('workflow')
-        LOG.debug('Workflow template:\n%s', workflow)
 
+def main():
+    argv_len = len(sys.argv)
+    if argv_len == 3:
+        action = sys.argv[1]
+        role_name = sys.argv[2]
+    elif argv_len == 2:
+        action = "provision"
+        role_name = sys.argv[1]
+    else:
+        LOG.error("wrong arguments")
+        sys.exit(1)
+
+    setup_variables(role_name)
+
+    if action == "provision":
+        do_provision(role_name)
+    elif action == "status":
+        do_status(role_name)
+    else:
+        LOG.error("Action %s is not supported", action)
+        sys.exit(1)
+
+
+def do_status(role_name):
+    workflow = get_workflow(role_name)
+    service_name = workflow["name"]
+    # check status in etcd
+    if not check_is_done(service_name):
+        LOG.info("Service is not done")
+        sys.exit(1)
+    LOG.info("Service in done state")
+    # launch readiness command
+    readiness_cmd = workflow.get("readiness")
+    if readiness_cmd:
+        run_cmd(readiness_cmd)
+    # set ready in etcd
+    # ttl 20 because readiness check runs each 10 sec
+    set_status_ready(service_name, ttl=20)
+
+
+def do_provision(role_name):
+    workflow = get_workflow(role_name)
     files = workflow.get('files', [])
     create_files(files)
 
-    etcd_urls = VARIABLES.get('etcd_urls')
-    if not etcd_urls:
-        raise Exception("Etcd urls are not specified")
-    LOG.debug("Using the following etcd urls: \"%s\"", etcd_urls)
     etcd_client = None
 
     dependencies = workflow.get('dependencies')
     if dependencies:
-        etcd_client = get_etcd_client(etcd_urls)
+        etcd_client = get_etcd_client()
         wait_for_dependencies(dependencies, etcd_client)
 
+    job = workflow.get("job")
+    daemon = workflow.get("daemon")
+    if job:
+        execute_job(workflow, job)
+    elif daemon:
+        execute_daemon(workflow, daemon)
+    else:
+        LOG.error("Job or daemon is not specified in workflow")
+        sys.exit(1)
+
+
+def execute_daemon(workflow, daemon):
     pre_commands = workflow.get('pre', [])
-    LOG.info('Runnning pre commands')
+    LOG.info('Running pre commands')
     for cmd in pre_commands:
         run_cmd(cmd.get('command'), cmd.get('user'))
 
-    daemon = workflow.get('daemon')
-    if daemon:
-        proc = run_daemon(daemon.get('command'), daemon.get('user'))
-
-    job = workflow.get('job')
-    if job:
-        LOG.info('Running single command')
-        run_cmd(job.get('command'), job.get('user'))
+    proc = run_daemon(daemon.get('command'), daemon.get('user'))
 
     LOG.info('Running post commands')
     post_commands = workflow.get('post', [])
     for cmd in post_commands:
         run_cmd(cmd.get('command'), cmd.get('user'))
 
-    set_status_done(
-        workflow.get('name'), etcd_client or get_etcd_client(etcd_urls))
+    set_status_done(workflow["name"])
 
-    if daemon:
-        code = proc.wait()
-        LOG.info("Process exited with code %d", code)
-        sys.exit(code)
+    code = proc.wait()
+    LOG.info("Process exited with code %d", code)
+    sys.exit(code)
+
+
+def execute_job(workflow, job):
+    LOG.info('Running single command')
+    try:
+        run_cmd(job.get('command'), job.get('user'))
+    except ProcessException as ex:
+        LOG.error("Job execution failed")
+        sys.exit(ex.exit_code)
+    set_status_ready(workflow["name"])
+    sys.exit(0)
 
 
 if __name__ == "__main__":
