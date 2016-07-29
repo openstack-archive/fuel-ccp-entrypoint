@@ -100,3 +100,46 @@ class TestRetry(base.TestCase):
         self.assertRaisesRegexp(
             etcd.EtcdException, 'test_error', self.func_test)
         self.assertEqual(3, self.func_ret.call_count)
+
+
+class TestGetETCDClient(base.TestCase):
+    def test_get_etcd_local_client(self):
+        start_script.VARIABLES = {
+            "role_name": "etcd",
+            "etcd_client_port": 10042,
+            "network_topology": {
+                "private": {
+                    "address": "192.0.2.1"
+                }
+            }
+        }
+        with mock.patch("etcd.Client") as m_etcd:
+            expected_value = object()
+            m_etcd.return_value = expected_value
+            etcd_client = start_script.get_etcd_client()
+            self.assertIs(expected_value, etcd_client)
+            m_etcd.assert_called_once_with(
+                host=(("192.0.2.1", 10042),),
+                allow_reconnect=True,
+                read_timeout=2)
+
+    def test_get_etcd_client(self):
+        start_script.VARIABLES = {
+            "role_name": "banana",
+            "etcd_urls": "http://etcd1:10042,http://etcd2:10042"
+        }
+        with mock.patch("etcd.Client") as m_etcd:
+            expected_value = object()
+            m_etcd.return_value = expected_value
+            etcd_client = start_script.get_etcd_client()
+            self.assertIs(expected_value, etcd_client)
+            m_etcd.assert_called_once_with(
+                host=(("etcd1", 10042), ("etcd2", 10042)),
+                allow_reconnect=True,
+                read_timeout=2)
+
+    def test_get_etcd_client_wrong(self):
+        start_script.VARIABLES = {
+            "role_nmae": "banana"
+        }
+        self.assertRaises(KeyError, start_script.get_etcd_client)
