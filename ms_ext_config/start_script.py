@@ -113,6 +113,13 @@ def set_status_done(service_name, etcd_client):
     LOG.info('Status for "%s" was set to "done"', service_name)
 
 
+@retry
+def check_is_done(service_name):
+    key = etcd_path(service_name, "done")
+    etcd_client = get_etcd_client()
+    return key in etcd_client
+
+
 def cmd_str(cmd):
     if isinstance(cmd, six.string_types):
         return cmd
@@ -210,7 +217,11 @@ def create_files(files):
 
 
 @retry
-def get_etcd_client(etcd_urls):
+def get_etcd_client():
+    etcd_urls = VARIABLES.get("etcd_urls")
+    if not etcd_urls:
+        raise Exception("Etcd urls are not specified")
+    LOG.debug("Using the following etcd urls: \"%s\"", etcd_urls)
     etcd_machines = []
     for etcd_machine in etcd_urls.split(","):
         parsed_url = parse.urlparse(etcd_machine)
@@ -274,9 +285,17 @@ def run_daemon(cmd, user=None):
     raise RuntimeError("Process exited with code: %d" % proc.returncode)
 
 
-def main():
+def get_workflow(role_name):
+    workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
+    LOG.info("Getting workflow from %s", workflow_path)
+    with open(workflow_path) as f:
+        workflow = yaml.load(f).get('workflow')
+    LOG.debug('Workflow template:\n%s', workflow)
+    return workflow
+
+
+def setup_variables(role_name):
     global VARIABLES
-    role_name = sys.argv[1]
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         VARIABLES = yaml.load(f)
@@ -288,24 +307,46 @@ def main():
     LOG.debug("Creating network topology configuration")
     VARIABLES["network_topology"] = create_network_topology(meta_info)
 
-    workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
-    LOG.info("Getting workflow from %s", workflow_path)
-    with open(workflow_path) as f:
-        workflow = yaml.load(f).get('workflow')
-        LOG.debug('Workflow template:\n%s', workflow)
 
+def main():
+    argv_len = len(sys.argv)
+    if argv_len == 3:
+        action = sys.argv[1]
+        role_name = sys.argv[2]
+    elif argv_len == 2:
+        action = "provision"
+        role_name = sys.argv[1]
+    else:
+        LOG.error("wrong arguments")
+        sys.exit(1)
+
+    setup_variables(role_name)
+
+    if action == "provision":
+        do_provision(role_name)
+    elif action == "status":
+        do_status(role_name)
+    else:
+        LOG.error("Action %s is not supported", action)
+        sys.exit(1)
+
+
+def do_status(role_name):
+    workflow = get_workflow(role_name)
+    if not check_is_done(workflow.get("name")):
+        sys.exit(1)
+
+
+def do_provision(role_name):
+    workflow = get_workflow(role_name)
     files = workflow.get('files', [])
     create_files(files)
 
-    etcd_urls = VARIABLES.get('etcd_urls')
-    if not etcd_urls:
-        raise Exception("Etcd urls are not specified")
-    LOG.debug("Using the following etcd urls: \"%s\"", etcd_urls)
     etcd_client = None
 
     dependencies = workflow.get('dependencies')
     if dependencies:
-        etcd_client = get_etcd_client(etcd_urls)
+        etcd_client = get_etcd_client()
         wait_for_dependencies(dependencies, etcd_client)
 
     pre_commands = workflow.get('pre', [])
@@ -328,7 +369,7 @@ def main():
         run_cmd(cmd.get('command'), cmd.get('user'))
 
     set_status_done(
-        workflow.get('name'), etcd_client or get_etcd_client(etcd_urls))
+        workflow.get('name'), etcd_client or get_etcd_client())
 
     if daemon:
         code = proc.wait()
