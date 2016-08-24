@@ -283,6 +283,9 @@ def main():
     with open(META_FILE) as f:
         meta_info = yaml.load(f)
     VARIABLES['role_name'] = role_name
+    for k in os.environ:
+        if k.startswith('CCP_'):
+            VARIABLES[k] = os.environ[k]
     LOG.debug('Global variables:\n%s', VARIABLES)
     LOG.debug("Getting meta info from %s", META_FILE)
     LOG.debug("Creating network topology configuration")
