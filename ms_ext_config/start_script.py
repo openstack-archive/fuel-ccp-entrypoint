@@ -323,18 +323,23 @@ def get_workflow(role_name):
     return workflow
 
 
-def setup_variables(role_name):
-    global VARIABLES
+def get_variables(role_name):
+    variables = None
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
-        VARIABLES = yaml.load(f)
+        variables = yaml.load(f)
+    LOG.info("Getting meta information from %s", META_FILE)
     with open(META_FILE) as f:
         meta_info = yaml.load(f)
-    VARIABLES['role_name'] = role_name
-    LOG.debug('Global variables:\n%s', VARIABLES)
+    variables['role_name'] = role_name
+    LOG.info("Get CCP environment variables")
+    for k in os.environ:
+        if k.startswith('CCP_'):
+            variables[k] = os.environ[k]
     LOG.debug("Getting meta info from %s", META_FILE)
     LOG.debug("Creating network topology configuration")
-    VARIABLES["network_topology"] = create_network_topology(meta_info)
+    variables["network_topology"] = create_network_topology(meta_info)
+    return variables
 
 
 def main():
@@ -344,7 +349,9 @@ def main():
     parser.add_argument("role")
     args = parser.parse_args(sys.argv[1:])
 
-    setup_variables(args.role)
+    global VARIABLES
+    VARIABLES = get_variables(args.role)
+    LOG.debug('Global variables:\n%s', VARIABLES)
 
     if args.action == "provision":
         do_provision(args.role)
