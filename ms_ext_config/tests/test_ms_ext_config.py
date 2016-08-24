@@ -20,6 +20,7 @@ test_ms_ext_config
 Tests for `ms_ext_config` module.
 """
 
+import os
 import etcd
 import mock
 
@@ -73,6 +74,34 @@ class TestGetIpAddress(base.TestCase):
         self.assertEqual('8.8.8.8', r_value)
         self.assertEqual(1, len(m_interfaces.mock_calls))
         self.assertEqual(2, len(m_ifaddresses.mock_calls))
+
+
+class TestFillVariables(base.TestCase):
+
+    def setUp(self):
+        super(TestFillVariables, self).setUp()
+        os.environ['CCP_VAR_FOO'] = 'CCP_VAL_FOO'
+
+    def tearDown(self):
+        super(TestFillVariables, self).tearDown()
+        del os.environ['CCP_VAR_FOO']
+
+    @mock.patch('__builtin__.open', mock.mock_open())
+    @mock.patch('yaml.load')
+    @mock.patch('ms_ext_config.start_script.create_network_topology')
+    def test_fill_variables(self, m_create_network_topology, m_yaml_load):
+        def side_effect(file_name):
+            return {'glob': 'glob_val'}
+        m_yaml_load.side_effect = side_effect
+        m_create_network_topology.return_value = 'network_topology'
+        r_value = start_script.fill_variables('role')
+        e_value = {
+            'glob': 'glob_val',
+            'role_name': 'role',
+            'network_topology': 'network_topology',
+            'CCP_VAR_FOO': 'CCP_VAL_FOO'
+        }
+        self.assertEqual(r_value, e_value)
 
 
 class TestRetry(base.TestCase):

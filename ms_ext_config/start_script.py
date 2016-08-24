@@ -274,19 +274,31 @@ def run_daemon(cmd, user=None):
     raise RuntimeError("Process exited with code: %d" % proc.returncode)
 
 
-def main():
-    global VARIABLES
-    role_name = sys.argv[1]
+def fill_variables(role_name):
+    variables = None
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
-        VARIABLES = yaml.load(f)
+        variables = yaml.load(f)
+    LOG.info("Getting meta information from %s", META_FILE)
     with open(META_FILE) as f:
         meta_info = yaml.load(f)
-    VARIABLES['role_name'] = role_name
-    LOG.debug('Global variables:\n%s', VARIABLES)
+    variables['role_name'] = role_name
+    LOG.info("Get CCP environment variables")
+    for k in os.environ:
+        if k.startswith('CCP_'):
+            variables[k] = os.environ[k]
     LOG.debug("Getting meta info from %s", META_FILE)
     LOG.debug("Creating network topology configuration")
-    VARIABLES["network_topology"] = create_network_topology(meta_info)
+    variables["network_topology"] = create_network_topology(meta_info)
+    return variables
+
+
+def main():
+    global VARIABLES
+
+    role_name = sys.argv[1]
+    VARIABLES = fill_variables(role_name)
+    LOG.debug('Global variables:\n%s', VARIABLES)
 
     workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
     LOG.info("Getting workflow from %s", workflow_path)
