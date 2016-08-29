@@ -19,10 +19,10 @@ import yaml
 
 
 VARIABLES = {}
-GLOBALS_PATH = '/etc/mcp/globals/globals.yaml'
-META_FILE = "/etc/mcp/meta/meta.yaml"
-WORKFLOW_PATH_TEMPLATE = '/etc/mcp/role/%s.yaml'
-FILES_DIR = '/etc/mcp/files'
+GLOBALS_PATH = '/etc/ccp/globals/globals.yaml'
+META_FILE = "/etc/ccp/meta/meta.yaml"
+WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.yaml'
+FILES_DIR = '/etc/ccp/files'
 
 LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 LOG_FORMAT = "%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s"
@@ -111,7 +111,7 @@ def create_network_topology(meta_info):
 
 def etcd_path(*path):
     namespace = VARIABLES.get('namespace', '')
-    return os.path.join('/mcp', namespace, 'status', 'global', *path)
+    return os.path.join('/ccp', namespace, 'status', 'global', *path)
 
 
 def set_status_done(service_name):
