@@ -82,7 +82,7 @@ def get_ip_address(iface):
             return '127.0.0.1'
 
 
-def create_network_topology(meta_info):
+def create_network_topology(meta_info, variables):
     """Create a network topology config.
 
        These config could be used in jinja2 templates to fetch needed variables
@@ -93,8 +93,8 @@ def create_network_topology(meta_info):
 
     if meta_info["host-net"]:
         LOG.debug("Found 'host-net' flag, trying to fetch host network")
-        priv_iface = VARIABLES["private_interface"]
-        pub_iface = VARIABLES["public_interface"]
+        priv_iface = variables["private_interface"]
+        pub_iface = variables["public_interface"]
         network_info = {"private": {"iface": priv_iface,
                                     "address": get_ip_address(priv_iface)},
                         "public": {"iface": pub_iface,
@@ -338,7 +338,8 @@ def get_variables(role_name):
             variables[k] = os.environ[k]
     LOG.debug("Getting meta info from %s", META_FILE)
     LOG.debug("Creating network topology configuration")
-    variables["network_topology"] = create_network_topology(meta_info)
+    variables["network_topology"] = create_network_topology(meta_info,
+                                                            variables)
     return variables
 
 
