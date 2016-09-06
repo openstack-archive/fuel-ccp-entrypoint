@@ -20,9 +20,10 @@ test_ms_ext_config
 Tests for `ms_ext_config` module.
 """
 
+import os
+
 import etcd
 import mock
-import os
 
 from ms_ext_config import start_script
 from ms_ext_config.tests import base
@@ -86,7 +87,6 @@ class TestGetVariables(base.TestCase):
         super(TestGetVariables, self).tearDown()
         del os.environ['CCP_VAR_FOO']
 
-    @mock.patch('__builtin__.open', mock.mock_open())
     @mock.patch('json.load')
     @mock.patch('ms_ext_config.start_script.create_network_topology')
     def test_get_variables(self, m_create_network_topology, m_json_load):
@@ -94,7 +94,8 @@ class TestGetVariables(base.TestCase):
             return {'glob': 'glob_val'}
         m_json_load.return_value = {'glob': 'glob_val'}
         m_create_network_topology.return_value = 'network_topology'
-        r_value = start_script.get_variables('role')
+        with mock.patch("six.moves.builtins.open", mock.mock_open()):
+            r_value = start_script.get_variables('role')
         e_value = {
             'glob': 'glob_val',
             'role_name': 'role',
