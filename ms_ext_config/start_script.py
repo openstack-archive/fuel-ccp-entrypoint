@@ -12,16 +12,16 @@ import time
 
 import etcd
 import jinja2
+import json
 import netifaces
 import six
 from six.moves.urllib import parse
-import yaml
 
 
 VARIABLES = {}
-GLOBALS_PATH = '/etc/ccp/globals/globals.yaml'
-META_FILE = "/etc/ccp/meta/meta.yaml"
-WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.yaml'
+GLOBALS_PATH = '/etc/ccp/globals/globals.json'
+META_FILE = "/etc/ccp/meta/meta.json"
+WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.json'
 FILES_DIR = '/etc/ccp/files'
 
 LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
@@ -105,7 +105,7 @@ def create_network_topology(meta_info, variables):
                                     "address": get_ip_address("eth0")},
                         "public": {"iface": "eth0",
                                    "address": get_ip_address("eth0")}}
-    LOG.debug("Network information\n%s", yaml.dump(network_info))
+    LOG.debug("Network information\n%s", network_info)
     return network_info
 
 
@@ -318,7 +318,7 @@ def get_workflow(role_name):
     workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
     LOG.info("Getting workflow from %s", workflow_path)
     with open(workflow_path) as f:
-        workflow = yaml.load(f).get('workflow')
+        workflow = json.load(f).get('workflow')
     LOG.debug('Workflow template:\n%s', workflow)
     return workflow
 
@@ -327,10 +327,10 @@ def get_variables(role_name):
     variables = None
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
-        variables = yaml.load(f)
+        variables = json.load(f)
     LOG.info("Getting meta information from %s", META_FILE)
     with open(META_FILE) as f:
-        meta_info = yaml.load(f)
+        meta_info = json.load(f)
     variables['role_name'] = role_name
     LOG.info("Get CCP environment variables")
     for k in os.environ:

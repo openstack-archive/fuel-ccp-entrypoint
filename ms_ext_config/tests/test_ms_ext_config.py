@@ -87,12 +87,12 @@ class TestGetVariables(base.TestCase):
         del os.environ['CCP_VAR_FOO']
 
     @mock.patch('__builtin__.open', mock.mock_open())
-    @mock.patch('yaml.load')
+    @mock.patch('json.load')
     @mock.patch('ms_ext_config.start_script.create_network_topology')
-    def test_get_variables(self, m_create_network_topology, m_yaml_load):
+    def test_get_variables(self, m_create_network_topology, m_json_load):
         def side_effect(file_name):
             return {'glob': 'glob_val'}
-        m_yaml_load.return_value = {'glob': 'glob_val'}
+        m_json_load.return_value = {'glob': 'glob_val'}
         m_create_network_topology.return_value = 'network_topology'
         r_value = start_script.get_variables('role')
         e_value = {
