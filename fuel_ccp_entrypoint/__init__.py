@@ -16,4 +16,4 @@ import pbr.version
 
 
 __version__ = pbr.version.VersionInfo(
-    'ms_ext_config').version_string()
+    'fuel_ccp_entrypoint').version_string()

@@ -12,21 +12,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-"""
-test_ms_ext_config
-----------------------------------
-
-Tests for `ms_ext_config` module.
-"""
-
 import os
 
 import etcd
 import mock
 
-from ms_ext_config import start_script
-from ms_ext_config.tests import base
+from fuel_ccp_entrypoint import start_script
+from fuel_ccp_entrypoint.tests import base
 
 
 class TestGetIpAddress(base.TestCase):
@@ -89,7 +81,7 @@ class TestGetVariables(base.TestCase):
 
     @mock.patch('six.moves.builtins.open', mock.mock_open())
     @mock.patch('json.load')
-    @mock.patch('ms_ext_config.start_script.create_network_topology')
+    @mock.patch('fuel_ccp_entrypoint.start_script.create_network_topology')
     def test_get_variables(self, m_create_network_topology, m_json_load):
         def side_effect(file_name):
             return {'glob': 'glob_val'}
