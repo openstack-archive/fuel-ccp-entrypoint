@@ -1,7 +1,7 @@
 [run]
 branch = True
-source = ms_ext_config
-omit = ms_ext_config/openstack/*
+source = fuel_ccp_entrypoint
+omit = fuel_ccp_entrypoint/openstack/*
 
 [report]
 ignore_errors = True
