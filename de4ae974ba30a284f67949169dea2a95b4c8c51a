@@ -1,0 +1,9 @@
+Code-Review+2: Eric Lemoine <elemoine@mirantis.com>
+Code-Review+1: Andrey Pavlov <apavlov@mirantis.com>
+Workflow+1: Aleksandr Mogylchenko <amogylchenko@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 08 Sep 2016 21:39:22 +0000
+Reviewed-on: https://review.openstack.org/366395
+Project: openstack/fuel-ccp-entrypoint
+Branch: refs/heads/master
