@@ -167,8 +167,8 @@ def openstackclient_preexec_fn():
         os.environ["OS_PASSWORD"] = VARIABLES['openstack_user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack_user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack_project_name']
-        os.environ["OS_AUTH_URL"] = 'http://keystone:%s/v3' % VARIABLES[
-            'keystone_admin_port']
+        os.environ["OS_AUTH_URL"] = 'http://keystone.%s:%s/v3' % (
+            VARIABLES['namespace'], VARIABLES['keystone_admin_port'])
     return result
 
 
