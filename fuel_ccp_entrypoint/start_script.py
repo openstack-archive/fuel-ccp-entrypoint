@@ -195,14 +195,9 @@ def execute_cmd(cmd, user=None):
     return subprocess.Popen(cmd_str(cmd), **kwargs)
 
 
-def str_to_bool(text):
-    return text is not None and text.lower() in ['true', 'yes']
-
-
 def jinja_render_file(path):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(
         os.path.dirname(path)))
-    env.filters['bool'] = str_to_bool
 
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
