@@ -148,7 +148,8 @@ class TestGetETCDClient(base.TestCase):
     def test_get_etcd_client(self):
         start_script.VARIABLES = {
             "role_name": "banana",
-            "etcd_urls": "http://etcd1:10042,http://etcd2:10042"
+            "namespace": "ccp",
+            "etcd_client_port": 1234
         }
         with mock.patch("etcd.Client") as m_etcd:
             expected_value = object()
@@ -156,7 +157,7 @@ class TestGetETCDClient(base.TestCase):
             etcd_client = start_script.get_etcd_client()
             self.assertIs(expected_value, etcd_client)
             m_etcd.assert_called_once_with(
-                host=(("etcd1", 10042), ("etcd2", 10042)),
+                host=(('etcd.ccp', 1234),),
                 allow_reconnect=True,
                 read_timeout=2)
 
