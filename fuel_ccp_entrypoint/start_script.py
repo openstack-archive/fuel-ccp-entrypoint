@@ -15,7 +15,6 @@ import jinja2
 import json
 import netifaces
 import six
-from six.moves.urllib import parse
 
 
 VARIABLES = {}
@@ -195,17 +194,23 @@ def execute_cmd(cmd, user=None):
     return subprocess.Popen(cmd_str(cmd), **kwargs)
 
 
+def address(service):
+    return '%s.%s' % (service, VARIABLES['namespace'])
+
+
 def jinja_render_file(path):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(
         os.path.dirname(path)))
-
+    env.globals['address'] = address
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
     return content
 
 
 def jinja_render_cmd(cmd):
-    return jinja2.Environment().from_string(cmd).render(VARIABLES)
+    env = jinja2.Environment()
+    env.globals['address'] = address
+    return env.from_string(cmd).render(VARIABLES)
 
 
 def create_files(files):
@@ -247,9 +252,9 @@ def get_etcd_client():
             (VARIABLES["network_topology"]["private"]["address"],
              VARIABLES["etcd_client_port"]))
     else:
-        for etcd_machine in VARIABLES["etcd_urls"].split(","):
-            parsed_url = parse.urlparse(etcd_machine)
-            etcd_machines.append((parsed_url.hostname, parsed_url.port))
+        etcd_machines.append(
+            (address('etcd'), VARIABLES["etcd_client_port"])
+        )
 
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
     LOG.debug("Using the following etcd urls: \"%s\"", etcd_machines_str)
