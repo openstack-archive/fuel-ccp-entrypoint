@@ -266,7 +266,7 @@ def get_etcd_client():
 def check_dependence(dep, etcd_client):
     LOG.debug("Waiting for \"%s\" dependency", dep)
     while True:
-        if check_is_ready(dep):
+        if check_is_ready(dep, etcd_client):
             LOG.debug("Dependency \"%s\" is in \"ready\" state", dep)
             break
         LOG.debug("Dependency \"%s\" is not ready yet, retrying", dep)
@@ -324,7 +324,6 @@ def get_workflow(role_name):
 
 
 def get_variables(role_name):
-    variables = None
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = json.load(f)
@@ -383,8 +382,6 @@ def do_provision(role_name):
     workflow = get_workflow(role_name)
     files = workflow.get('files', [])
     create_files(files)
-
-    etcd_client = None
 
     dependencies = workflow.get('dependencies')
     if dependencies:
