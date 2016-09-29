@@ -332,9 +332,6 @@ def get_variables(role_name):
         meta_info = json.load(f)
     variables['role_name'] = role_name
     LOG.info("Get CCP environment variables")
-    for k in os.environ:
-        if k.startswith('CCP_'):
-            variables[k] = os.environ[k]
     if os.environ.get('CCP_NODE_NAME'):
         variables['node_name'] = os.environ['CCP_NODE_NAME']
     LOG.debug("Getting meta info from %s", META_FILE)
