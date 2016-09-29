@@ -336,6 +336,8 @@ def get_variables(role_name):
     for k in os.environ:
         if k.startswith('CCP_'):
             variables[k] = os.environ[k]
+    if os.environ.get('CCP_NODE_NAME'):
+        variables['node_name'] = os.environ['CCP_NODE_NAME']
     LOG.debug("Getting meta info from %s", META_FILE)
     LOG.debug("Creating network topology configuration")
     variables["network_topology"] = create_network_topology(meta_info,
