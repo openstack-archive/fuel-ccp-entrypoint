@@ -74,10 +74,12 @@ class TestGetVariables(base.TestCase):
     def setUp(self):
         super(TestGetVariables, self).setUp()
         os.environ['CCP_VAR_FOO'] = 'CCP_VAL_FOO'
+        os.environ['CCP_NODE_NAME'] = 'node1'
 
     def tearDown(self):
         super(TestGetVariables, self).tearDown()
         del os.environ['CCP_VAR_FOO']
+        del os.environ['CCP_NODE_NAME']
 
     @mock.patch('six.moves.builtins.open', mock.mock_open())
     @mock.patch('json.load')
@@ -92,7 +94,9 @@ class TestGetVariables(base.TestCase):
             'glob': 'glob_val',
             'role_name': 'role',
             'network_topology': 'network_topology',
-            'CCP_VAR_FOO': 'CCP_VAL_FOO'
+            'node_name': 'node1',
+            'CCP_VAR_FOO': 'CCP_VAL_FOO',
+            'CCP_NODE_NAME': 'node1'
         }
         self.assertEqual(r_value, e_value)
 
