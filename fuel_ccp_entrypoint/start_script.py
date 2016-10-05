@@ -41,8 +41,8 @@ class ProcessException(Exception):
 def retry(f):
     @functools.wraps(f)
     def wrap(*args, **kwargs):
-        attempts = VARIABLES.get('etcd_connection_attempts', 10)
-        delay = VARIABLES.get('etcd_connection_delay', 5)
+        attempts = VARIABLES['etcd']['connection_attempts']
+        delay = VARIABLES['etcd']['connection_delay']
         while attempts > 1:
             try:
                 return f(*args, **kwargs)
@@ -250,10 +250,10 @@ def get_etcd_client():
     if VARIABLES["role_name"] == "etcd":
         etcd_machines.append(
             (VARIABLES["network_topology"]["private"]["address"],
-             VARIABLES["etcd_client_port"]))
+             VARIABLES["etcd"]["client_port"]))
     else:
         etcd_machines.append(
-            (address('etcd'), VARIABLES["etcd_client_port"])
+            (address('etcd'), VARIABLES["etcd"]["client_port"])
         )
 
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
