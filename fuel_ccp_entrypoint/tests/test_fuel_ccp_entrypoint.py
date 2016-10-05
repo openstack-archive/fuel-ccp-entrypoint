@@ -104,10 +104,10 @@ class TestGetVariables(base.TestCase):
 class TestRetry(base.TestCase):
     def setUp(self):
         super(TestRetry, self).setUp()
-        start_script.VARIABLES = {
-            'etcd_connection_attempts': 3,
-            'etcd_connection_delay': 0
-        }
+        start_script.VARIABLES = {'etcd': {
+            'connection_attempts': 3,
+            'connection_delay': 0
+        }}
 
     @start_script.retry
     def func_test(self):
@@ -132,7 +132,11 @@ class TestGetETCDClient(base.TestCase):
     def test_get_etcd_local_client(self):
         start_script.VARIABLES = {
             "role_name": "etcd",
-            "etcd_client_port": 10042,
+            "etcd": {
+                "client_port": 10042,
+                "connection_attempts": 3,
+                "connection_delay": 0,
+            },
             "network_topology": {
                 "private": {
                     "address": "192.0.2.1"
@@ -153,7 +157,11 @@ class TestGetETCDClient(base.TestCase):
         start_script.VARIABLES = {
             "role_name": "banana",
             "namespace": "ccp",
-            "etcd_client_port": 1234
+            "etcd": {
+                "client_port": 1234,
+                "connection_attempts": 3,
+                "connection_delay": 0,
+            },
         }
         with mock.patch("etcd.Client") as m_etcd:
             expected_value = object()
