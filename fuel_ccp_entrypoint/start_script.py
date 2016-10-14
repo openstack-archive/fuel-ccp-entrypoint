@@ -110,7 +110,7 @@ def create_network_topology(meta_info, variables):
 
 def etcd_path(*path):
     namespace = VARIABLES.get('namespace', '')
-    return os.path.join('/ccp', namespace, 'status', 'global', *path)
+    return os.path.join('/ccp', namespace, 'status', *path)
 
 
 def set_status_done(service_name):
@@ -124,24 +124,28 @@ def set_status_ready(service_name, ttl=None):
 @retry
 def _set_status(service_name, status, ttl=None):
     etcd_client = get_etcd_client()
-    key = etcd_path(service_name, status)
-    etcd_client.set(key, "1", ttl=ttl)
-    LOG.info('Status for "%s" was set to "%s"', service_name, status)
+    for dep_type in ['global', VARIABLES['node_name']]:
+        key = etcd_path(dep_type, service_name, status)
+        etcd_client.set(key, "1", ttl=ttl)
+        LOG.info('Status for "%s" was set to "%s"',
+                 os.path.join(dep_type, service_name), status)
 
 
-def check_is_done(service_name):
-    return _check_status(service_name, "done")
+def check_is_done(dep):
+    return _check_status(dep, "done")
 
 
-def check_is_ready(service_name, etcd_client=None):
-    return _check_status(service_name, "ready", etcd_client)
+def check_is_ready(dep, etcd_client=None):
+    return _check_status(dep, "ready", etcd_client)
 
 
 @retry
-def _check_status(service_name, status, etcd_client=None):
+def _check_status(dep, status, etcd_client=None):
     if not etcd_client:
         etcd_client = get_etcd_client()
-    key = etcd_path(service_name, status)
+    dep_name, _, dep_type = dep.partition(":")
+    dep_type = VARIABLES['node_name'] if dep_type == 'local' else 'global'
+    key = etcd_path(dep_type, dep_name, status)
     return key in etcd_client
 
 
