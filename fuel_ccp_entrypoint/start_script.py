@@ -171,8 +171,8 @@ def openstackclient_preexec_fn():
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
-        os.environ["OS_AUTH_URL"] = 'http://%s:%s/v3' % (
-            address('keystone'), VARIABLES['keystone']['admin_port']['cont'])
+        os.environ["OS_AUTH_URL"] = 'http://%s/v3' % address(
+            'keystone', VARIABLES['keystone']['admin_port'])
     return result
 
 
@@ -199,8 +199,27 @@ def execute_cmd(cmd, user=None):
     return subprocess.Popen(cmd_str(cmd), **kwargs)
 
 
-def address(service):
-    return '%s.%s' % (service, VARIABLES['namespace'])
+def get_ingress_host(ingress_name):
+    return '.'.join((
+        ingress_name, VARIABLES['namespace'], VARIABLES['ingress']['domain']))
+
+
+def address(service, port=None, external=False):
+    addr = None
+    if external:
+        if not port:
+            raise RuntimeError('Port config is required for external address')
+        if VARIABLES['ingress']['enabled'] and port.get('ingress'):
+            addr = get_ingress_host(port['ingress'])
+        elif port.get('node'):
+            addr = '%s:%s' % (VARIABLES['k8s_external_ip'], port['node'])
+
+    if addr is None:
+        addr = '%s.%s' % (service, VARIABLES['namespace'])
+        if port:
+            addr = '%s:%s' % (addr, port['cont'])
+
+    return addr
 
 
 def jinja_render_file(path):
