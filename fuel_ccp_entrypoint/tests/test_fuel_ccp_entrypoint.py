@@ -129,7 +129,7 @@ class TestGetETCDClient(base.TestCase):
         start_script.VARIABLES = {
             "role_name": "etcd",
             "etcd": {
-                "client_port": 10042,
+                "client_port": {'cont': 10042},
                 "connection_attempts": 3,
                 "connection_delay": 0,
             },
@@ -154,7 +154,7 @@ class TestGetETCDClient(base.TestCase):
             "role_name": "banana",
             "namespace": "ccp",
             "etcd": {
-                "client_port": 1234,
+                "client_port": {'cont': 1234},
                 "connection_attempts": 3,
                 "connection_delay": 0,
             },
