@@ -170,8 +170,8 @@ def openstackclient_preexec_fn():
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
-        os.environ["OS_AUTH_URL"] = 'http://%s:%s/v3' % (
-            address('keystone'), VARIABLES['keystone']['admin_port'])
+        os.environ["OS_AUTH_URL"] = 'http://%s/v3' % address(
+            'keystone', 'admin_port')
     return result
 
 
@@ -198,8 +198,28 @@ def execute_cmd(cmd, user=None):
     return subprocess.Popen(cmd_str(cmd), **kwargs)
 
 
-def address(service):
-    return '%s.%s' % (service, VARIABLES['namespace'])
+def get_ingress_host(ingress_name):
+    return '.'.join((
+        ingress_name, VARIABLES['namespace'], VARIABLES['ingress_domain']))
+
+
+def address(service, port=None, external=False):
+    addr = None
+    if external and port:
+        if VARIABLES['use_ingress']:
+            ing_name = VARIABLES[service][port]['ingress']
+            addr = get_ingress_host(ing_name)
+        else:
+            node_port = VARIABLES[service][port]['node']
+            addr = '%s:%s' % (VARIABLES['k8s_external_ip'], node_port)
+
+    else:
+        addr = '%s.%s' % (service, VARIABLES['namespace'])
+        if port:
+            cont_port = VARIABLES[service][port]['cont']
+            addr = '%s:%s' % (addr, cont_port)
+
+    return addr
 
 
 def jinja_render_file(path):
@@ -254,10 +274,11 @@ def get_etcd_client():
     if VARIABLES["role_name"] == "etcd":
         etcd_machines.append(
             (VARIABLES["network_topology"]["private"]["address"],
-             VARIABLES["etcd"]["client_port"]))
+             VARIABLES["etcd"]["client_port"]["cont"])
+        )
     else:
         etcd_machines.append(
-            (address('etcd'), VARIABLES["etcd"]["client_port"])
+            (address('etcd'), VARIABLES["etcd"]["client_port"]["cont"])
         )
 
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
