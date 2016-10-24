@@ -199,8 +199,14 @@ def execute_cmd(cmd, user=None):
     return subprocess.Popen(cmd_str(cmd), **kwargs)
 
 
-def address(service):
-    return '%s.%s' % (service, VARIABLES['namespace'])
+def address(service, multiple=False):
+    addr = '%s.%s' % (service, VARIABLES['namespace'])
+    if multiple:
+        replicas = VARIABLES['replicas'].get(service, 1)
+        urls = ['%s-%i.%s' % (service, pod_number, addr)
+                for pod_number in range(replicas)]
+        addr = ','.join(urls)
+    return addr
 
 
 def jinja_render_file(path):
