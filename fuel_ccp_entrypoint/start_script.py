@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import argparse
 import functools
 import logging
@@ -171,7 +172,7 @@ def openstackclient_preexec_fn():
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
         os.environ["OS_AUTH_URL"] = 'http://%s:%s/v3' % (
-            address('keystone'), VARIABLES['keystone']['admin_port'])
+            address('keystone'), VARIABLES['keystone']['admin_port']['cont'])
     return result
 
 
@@ -254,10 +255,10 @@ def get_etcd_client():
     if VARIABLES["role_name"] == "etcd":
         etcd_machines.append(
             (VARIABLES["network_topology"]["private"]["address"],
-             VARIABLES["etcd"]["client_port"]))
+             VARIABLES["etcd"]["client_port"]['cont']))
     else:
         etcd_machines.append(
-            (address('etcd'), VARIABLES["etcd"]["client_port"])
+            (address('etcd'), VARIABLES["etcd"]["client_port"]['cont'])
         )
 
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
