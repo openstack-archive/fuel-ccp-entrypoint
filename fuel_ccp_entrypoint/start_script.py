@@ -204,7 +204,7 @@ def get_ingress_host(ingress_name):
         ingress_name, VARIABLES['namespace'], VARIABLES['ingress']['domain']))
 
 
-def address(service, port=None, external=False):
+def address(service, port=None, external=False, multiple=False, delimiter=','):
     addr = None
     if external:
         if not port:
@@ -218,6 +218,11 @@ def address(service, port=None, external=False):
         addr = '%s.%s' % (service, VARIABLES['namespace'])
         if port:
             addr = '%s:%s' % (addr, port['cont'])
+        if multiple:
+            replicas = VARIABLES['replicas']
+            urls = ['%s-%i.%s' % (service, pod_number, addr)
+                    for pod_number in range(replicas)]
+            addr = delimiter.join(urls)
 
     return addr
 
@@ -355,6 +360,7 @@ def get_variables(role_name):
     with open(META_FILE) as f:
         meta_info = json.load(f)
     variables['role_name'] = role_name
+    variables['replicas'] = meta_info['replicas']
     LOG.info("Get CCP environment variables")
     if os.environ.get('CCP_NODE_NAME'):
         variables['node_name'] = os.environ['CCP_NODE_NAME']
