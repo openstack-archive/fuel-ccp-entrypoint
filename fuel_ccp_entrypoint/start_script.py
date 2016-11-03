@@ -167,6 +167,7 @@ def preexec_fn(user_uid, user_gid, user_home):
 def openstackclient_preexec_fn():
     def result():
         os.environ["OS_IDENTITY_API_VERSION"] = "3"
+        os.environ["OS_INTERFACE"] = "internal"
         os.environ["OS_PROJECT_DOMAIN_NAME"] = 'default'
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
