@@ -23,6 +23,7 @@ GLOBALS_PATH = '/etc/ccp/globals/globals.json'
 META_FILE = "/etc/ccp/meta/meta.json"
 WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.json'
 FILES_DIR = '/etc/ccp/files'
+EXPORTS_DIR = '/etc/ccp/exports'
 
 LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 LOG_FORMAT = "%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s"
@@ -223,9 +224,11 @@ def address(service, port=None, external=False):
     return addr
 
 
-def jinja_render_file(path):
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(
-        os.path.dirname(path)))
+def jinja_render_file(path, lookup_paths=None):
+    file_loaders = [jinja2.FileSystemLoader(os.path.dirname(path))]
+    for p in lookup_paths:
+        file_loaders.append(jinja2.FileSystemLoader(p))
+    env = jinja2.Environment(loader=jinja2.ChoiceLoader(loaders=file_loaders))
     env.globals['address'] = address
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
@@ -248,9 +251,8 @@ def create_files(files):
                   (file_path, file_template))
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-
         with open(file_path, 'w') as f:
-            rendered_config = jinja_render_file(file_template)
+            rendered_config = jinja_render_file(file_template, [EXPORTS_DIR])
             f.write(rendered_config)
 
         user = config.get('user')
