@@ -205,13 +205,16 @@ def get_ingress_host(ingress_name):
         ingress_name, VARIABLES['namespace'], VARIABLES['ingress']['domain']))
 
 
-def address(service, port=None, external=False):
+def address(service, port=None, external=False, with_scheme=False):
     addr = None
+    scheme = 'http'
     if external:
         if not port:
             raise RuntimeError('Port config is required for external address')
         if VARIABLES['ingress']['enabled'] and port.get('ingress'):
-            addr = get_ingress_host(port['ingress'])
+            scheme = 'https'
+            addr = "%s:%s" % (get_ingress_host(port['ingress']),
+                              VARIABLES['ingress']['port'])
         elif port.get('node'):
             addr = '%s:%s' % (VARIABLES['k8s_external_ip'], port['node'])
 
@@ -219,6 +222,9 @@ def address(service, port=None, external=False):
         addr = '%s.%s' % (service, VARIABLES['namespace'])
         if port:
             addr = '%s:%s' % (addr, port['cont'])
+
+    if with_scheme:
+        addr = "%s://%s" % (scheme, addr)
 
     return addr
 
