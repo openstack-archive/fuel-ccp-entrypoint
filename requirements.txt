@@ -4,6 +4,7 @@
 
 pbr>=1.6 # Apache-2.0
 Jinja2>=2.8 # BSD License (3 clause)
+pykube
 python-etcd>=0.4.3 # MIT License
 PyYAML>=3.10.0 # MIT
 six>=1.9.0 # MIT

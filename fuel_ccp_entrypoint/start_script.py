@@ -15,6 +15,7 @@ import etcd
 import jinja2
 import json
 import netifaces
+import pykube
 import six
 
 
@@ -339,6 +340,80 @@ def run_daemon(cmd, user=None):
     raise RuntimeError("Process exited with code: %d" % proc.returncode)
 
 
+def get_pykube_client():
+    os.environ['KUBERNETES_SERVICE_HOST'] = 'kubernetes.default'
+    config = pykube.KubeConfig.from_service_account()
+    return pykube.HTTPClient(config)
+
+
+def _reload_obj(obj, updated_dict):
+    obj.reload()
+    obj.obj = updated_dict
+
+
+def get_pykube_object(object_dict, namespace, client):
+    obj_class = getattr(pykube, object_dict["kind"], None)
+    if obj_class is None:
+        raise RuntimeError('"%s" object is not supported, skipping.'
+                           % object_dict['kind'])
+
+    if not object_dict['kind'] == 'Namespace':
+        object_dict['metadata']['namespace'] = namespace
+
+    return obj_class(client, object_dict)
+
+UPDATABLE_OBJECTS = ('ConfigMap', 'Deployment', 'Service')
+
+
+def process_pykube_object(object_dict, namespace, client):
+    LOG.debug("Deploying %s: \"%s\"",
+              object_dict["kind"], object_dict["metadata"]["name"])
+
+    obj = get_pykube_object(object_dict, namespace, client)
+
+    if obj.exists():
+        LOG.debug('%s "%s" already exists', object_dict['kind'],
+                  object_dict['metadata']['name'])
+        if object_dict['kind'] in UPDATABLE_OBJECTS:
+            if object_dict['kind'] == 'Service':
+                # Reload object and merge new and old fields
+                _reload_obj(obj, object_dict)
+            obj.update()
+            LOG.debug('%s "%s" has been updated', object_dict['kind'],
+                      object_dict['metadata']['name'])
+    else:
+        obj.create()
+        LOG.debug('%s "%s" has been created', object_dict['kind'],
+                  object_dict['metadata']['name'])
+    return obj
+
+
+def wait_for_deployment(obj):
+    while True:
+        generation = obj.obj['metadata']['generation'] 
+        observed_generation = obj.obj['status']['observedGeneration']
+        if observed_generation >= generation:
+            break
+        LOG.info("Waiting for deployment %s to move to new generation")
+        time.sleep(4.2)
+        obj.reload()
+
+    while True:
+        desired = obj.obj['spec']['replicas']
+        status = obj.obj['status']
+        updated = status['updatedReplicas']
+        available = status['availableReplicas']
+        current = status['replicas']
+        if desired == updated == available == current:
+            break
+        LOG.info("Waiting for deployment %s: desired=%s, updated=%s,"
+                 " available=%s, current=%s",
+                 obj.obj['metadata']['name'],
+                 desired, updated, available, current)
+        time.sleep(4.2)
+        obj.reload()
+
+
 def get_workflow(role_name):
     workflow_path = WORKFLOW_PATH_TEMPLATE % role_name
     LOG.info("Getting workflow from %s", workflow_path)
@@ -414,10 +489,13 @@ def do_provision(role_name):
 
     job = workflow.get("job")
     daemon = workflow.get("daemon")
+    roll = workflow.get("roll")
     if job:
         execute_job(workflow, job)
     elif daemon:
         execute_daemon(workflow, daemon)
+    elif roll is not None:
+        execute_roll(workflow, roll)
     else:
         LOG.error("Job or daemon is not specified in workflow")
         sys.exit(1)
@@ -450,6 +528,22 @@ def execute_job(workflow, job):
     except ProcessException as ex:
         LOG.error("Job execution failed")
         sys.exit(ex.exit_code)
+    set_status_ready(workflow["name"])
+    sys.exit(0)
+
+
+def execute_roll(workflow, roll):
+    LOG.info("Running rolling upgrade of service %s", workflow["name"])
+    with open("/var/run/secrets/kubernetes.io/serviceaccount/namespace") as f:
+        namespace = f.read()
+    client = get_pykube_client()
+    deployments = []
+    for object_dict in roll:
+        obj = process_pykube_object(object_dict, namespace, client)
+        if object_dict['kind'] == 'Deployment':
+            deployments.append(obj)
+    for obj in deployments:
+        wait_for_deployment(obj)
     set_status_ready(workflow["name"])
     sys.exit(0)
 
