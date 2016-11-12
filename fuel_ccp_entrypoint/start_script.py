@@ -407,9 +407,9 @@ def wait_for_deployment(obj):
     while True:
         desired = obj.obj['spec']['replicas']
         status = obj.obj['status']
-        updated = status['updatedReplicas']
-        available = status['availableReplicas']
-        current = status['replicas']
+        updated = status.get('updatedReplicas', 0)
+        available = status.get('availableReplicas', 0)
+        current = status.get('replicas', 0)
         if desired == updated == available == current:
             break
         LOG.info("Waiting for deployment %s: desired=%s, updated=%s,"
@@ -496,12 +496,15 @@ def do_provision(role_name):
     job = workflow.get("job")
     daemon = workflow.get("daemon")
     roll = workflow.get("roll")
+    kill = workflow.get("kill")
     if job:
         execute_job(workflow, job)
     elif daemon:
         execute_daemon(workflow, daemon)
     elif roll is not None:
         execute_roll(workflow, roll)
+    elif kill is not None:
+        execute_kill(workflow, kill)
     else:
         LOG.error("Job or daemon is not specified in workflow")
         sys.exit(1)
@@ -552,6 +555,26 @@ def execute_roll(workflow, roll):
     set_status_ready(workflow["name"])
     sys.exit(0)
 
+
+def execute_kill(workflow, kill):
+    LOG.info("Killing deployments for service %s", workflow["name"])
+    namespace = VARIABLES["namespace"]
+    client = get_pykube_client()
+    objs = []
+    for object_dict in kill:
+        if object_dict['kind'] != 'Deployment':
+            LOG.warn("Don't know how to handle %s, skipping",
+                     object_dict['kind'])
+            continue
+        obj = get_pykube_object(object_dict, namespace, client)
+        obj.reload()
+        obj.obj['spec']['replicas'] = 0
+        obj.update()
+        objs.append(obj)
+    for obj in objs:
+        wait_for_deployment(obj)
+    set_status_ready(workflow["name"])
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
