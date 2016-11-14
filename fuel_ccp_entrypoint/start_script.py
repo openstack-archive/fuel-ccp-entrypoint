@@ -170,6 +170,7 @@ def openstackclient_preexec_fn():
         os.environ["OS_IDENTITY_API_VERSION"] = "3"
         os.environ["OS_INTERFACE"] = "internal"
         os.environ["OS_PROJECT_DOMAIN_NAME"] = 'default'
+        os.environ["OS_USER_DOMAIN_NAME"] = "default"
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
@@ -187,17 +188,20 @@ def execute_cmd(cmd, user=None):
         "stderr": sys.stderr}
     # If openstackclient command is being executed, appropriate environment
     # variables will be set
-    if cmd.startswith('openstack '):
-        kwargs['preexec_fn'] = openstackclient_preexec_fn()
+    for prefix in ["openstack ", "neutron ", "murano "]:
+        if cmd.startswith(prefix):
+            kwargs['preexec_fn'] = openstackclient_preexec_fn()
+            break
     # Execute as user if `user` param is provided, execute as current user
     # otherwise
-    elif user:
-        LOG.debug('Executing as user %s', user)
-        pw_record = pwd.getpwnam(user)
-        user_uid = pw_record.pw_uid
-        user_gid = pw_record.pw_gid
-        user_home = pw_record.pw_dir
-        kwargs['preexec_fn'] = preexec_fn(user_uid, user_gid, user_home)
+    else:
+        if user:
+            LOG.debug('Executing as user %s', user)
+            pw_record = pwd.getpwnam(user)
+            user_uid = pw_record.pw_uid
+            user_gid = pw_record.pw_gid
+            user_home = pw_record.pw_dir
+            kwargs['preexec_fn'] = preexec_fn(user_uid, user_gid, user_home)
     return subprocess.Popen(cmd_str(cmd), **kwargs)
 
 
