@@ -85,12 +85,14 @@ class TestGetVariables(base.TestCase):
     def test_get_variables(self, m_create_network_topology, m_json_load):
         def side_effect(file_name):
             return {'glob': 'glob_val'}
-        m_json_load.return_value = {'glob': 'glob_val'}
+        m_json_load.return_value = {'glob': 'glob_val',
+                                    'service_name': 'someservice'}
         m_create_network_topology.return_value = 'network_topology'
         r_value = start_script.get_variables('role')
         e_value = {
             'glob': 'glob_val',
             'role_name': 'role',
+            'service_name': 'someservice',
             'network_topology': 'network_topology',
             'node_name': 'node1'
         }
