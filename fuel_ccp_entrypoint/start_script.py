@@ -245,6 +245,18 @@ def jinja_render_cmd(cmd):
     return env.from_string(cmd).render(VARIABLES)
 
 
+def merge_configs(source, destination):
+    """Create a recursive dicts merge"""
+    for key, value in source.items():
+        if isinstance(value, dict):
+            node = destination.setdefault(key, {})
+            merge_configs(value, node)
+        else:
+            destination[key] = value
+
+    return destination
+
+
 def create_files(files):
     LOG.info("Creating files")
     for config in files:
@@ -430,12 +442,23 @@ def get_workflow(role_name):
 
 
 def get_variables(role_name):
+
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = json.load(f)
     LOG.info("Getting meta information from %s", META_FILE)
     with open(META_FILE) as f:
         meta_info = json.load(f)
+
+    # Check if a service-local config context is used to overwrite globals
+    service_name = meta_info['service-name']
+    service_local = variables.get('service-local')
+    if service_local and service_name in service_local:
+        local_config = service_local[service_name]
+        LOG.debug("The service-local configs  for %s is applied: %s",
+                  (service_name, local_config))
+        merge_configs(local_config, variables)
+
     variables['role_name'] = role_name
     LOG.info("Get CCP environment variables")
     if os.environ.get('CCP_NODE_NAME'):

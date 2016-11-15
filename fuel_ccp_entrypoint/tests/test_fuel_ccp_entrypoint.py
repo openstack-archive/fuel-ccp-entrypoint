@@ -84,15 +84,17 @@ class TestGetVariables(base.TestCase):
     @mock.patch('fuel_ccp_entrypoint.start_script.create_network_topology')
     def test_get_variables(self, m_create_network_topology, m_json_load):
         def side_effect(file_name):
-            return {'glob': 'glob_val'}
-        m_json_load.return_value = {'glob': 'glob_val'}
+            return {'glob': 'glob_val', 'service-name': "kgb"}
+
+        m_json_load.return_value = {'glob': 'glob_val', 'service-name': "kgb"}
         m_create_network_topology.return_value = 'network_topology'
         r_value = start_script.get_variables('role')
         e_value = {
             'glob': 'glob_val',
             'role_name': 'role',
             'network_topology': 'network_topology',
-            'node_name': 'node1'
+            'node_name': 'node1',
+            'service-name': "kgb"
         }
         self.assertEqual(r_value, e_value)
 
