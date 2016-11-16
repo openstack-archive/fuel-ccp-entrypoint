@@ -372,7 +372,7 @@ def get_pykube_object(object_dict, namespace, client):
 
     return obj_class(client, object_dict)
 
-UPDATABLE_OBJECTS = ('ConfigMap', 'Deployment', 'Service')
+UPDATABLE_OBJECTS = ('ConfigMap', 'Deployment', 'Service', 'Ingress')
 
 
 def process_pykube_object(object_dict, namespace, client):
