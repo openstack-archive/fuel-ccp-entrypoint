@@ -7,6 +7,7 @@ import logging
 import os
 import pwd
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -234,10 +235,15 @@ def address(service, port=None, external=False, with_scheme=False):
     return addr
 
 
+def service_ip(service):
+    return socket.gethostbyname(address(service))
+
+
 def jinja_render_file(path):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(
         os.path.dirname(path)))
     env.globals['address'] = address
+    env.globals['service_ip'] = service_ip
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
     return content
@@ -246,6 +252,7 @@ def jinja_render_file(path):
 def jinja_render_cmd(cmd):
     env = jinja2.Environment()
     env.globals['address'] = address
+    env.globals['service_ip'] = service_ip
     return env.from_string(cmd).render(VARIABLES)
 
 
