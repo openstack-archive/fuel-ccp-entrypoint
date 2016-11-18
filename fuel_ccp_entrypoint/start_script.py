@@ -16,6 +16,7 @@ import jinja2
 import json
 import netifaces
 import pykube
+import requests
 import six
 
 
@@ -470,6 +471,18 @@ def main():
         LOG.error("Action %s is not supported", args.action)
 
 
+def run_probe(probe):
+    if probe["type"] == "exec":
+        run_cmd(probe["command"])
+    elif probe["type"] == "httpGet":
+        url = "http://{}:{}{}".format(
+            VARIABLES["network_topology"]["private"]["address"],
+            probe["port"],
+            probe.get("path", "/"))
+        resp = requests.get(url)
+        resp.raise_for_status()
+
+
 def do_status(role_name):
     workflow = get_workflow(role_name)
     service_name = workflow["name"]
@@ -478,10 +491,12 @@ def do_status(role_name):
         LOG.info("Service is not done")
         sys.exit(1)
     LOG.info("Service in done state")
-    # launch readiness command
-    readiness_cmd = workflow.get("readiness")
-    if readiness_cmd:
-        run_cmd(readiness_cmd)
+    # launch readiness probe
+    readiness_probe = workflow.get("readiness")
+    if readiness_probe:
+        if not isinstance(readiness_probe, dict):
+            readiness_probe = {"type": "exec", "command": readiness_probe}
+        run_probe(readiness_probe)
     # set ready in etcd
     # ttl 20 because readiness check runs each 10 sec
     set_status_ready(service_name, ttl=20)
