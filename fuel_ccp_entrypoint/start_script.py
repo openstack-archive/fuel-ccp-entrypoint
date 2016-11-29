@@ -225,7 +225,8 @@ def address(service, port=None, external=False, with_scheme=False):
             addr = '%s:%s' % (VARIABLES['k8s_external_ip'], port['node'])
 
     if addr is None:
-        addr = '%s.%s' % (service, VARIABLES['namespace'])
+        addr = '.'.join((service, VARIABLES['namespace'], 'svc',
+                         VARIABLES['cluster_domain']))
         if port:
             addr = '%s:%s' % (addr, port['cont'])
 

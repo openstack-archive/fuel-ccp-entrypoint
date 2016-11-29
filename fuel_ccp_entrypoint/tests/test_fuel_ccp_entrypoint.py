@@ -155,6 +155,7 @@ class TestGetETCDClient(base.TestCase):
         start_script.VARIABLES = {
             "role_name": "banana",
             "namespace": "ccp",
+            "cluster_domain": 'cluster.local',
             "etcd": {
                 "client_port": {
                     "cont": 1234
@@ -169,7 +170,7 @@ class TestGetETCDClient(base.TestCase):
             etcd_client = start_script.get_etcd_client()
             self.assertIs(expected_value, etcd_client)
             m_etcd.assert_called_once_with(
-                host=(('etcd.ccp', 1234),),
+                host=(('etcd.ccp.svc.cluster.local', 1234),),
                 allow_reconnect=True,
                 read_timeout=2)
 
