@@ -1,0 +1,10 @@
+Code-Review+1: Dmitry Mescheryakov (dmitryme) <dmescheryakov@mirantis.com>
+Code-Review+2: Sergey Lukjanov <slukjanov@mirantis.com>
+Code-Review+2: Yuriy Taraday <yorik.sar@gmail.com>
+Workflow+1: Yuriy Taraday <yorik.sar@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 29 Nov 2016 09:12:58 +0000
+Reviewed-on: https://review.openstack.org/396332
+Project: openstack/fuel-ccp-entrypoint
+Branch: refs/heads/master
