@@ -489,8 +489,9 @@ def run_probe(probe):
 def do_status(role_name):
     workflow = get_workflow(role_name)
     service_name = workflow["name"]
-    # check status in etcd
-    if not check_is_done(service_name):
+    # check local status in etcd
+    local_dep = "%s:local" % service_name
+    if not check_is_done(local_dep):
         LOG.info("Service is not done")
         sys.exit(1)
     LOG.info("Service in done state")
