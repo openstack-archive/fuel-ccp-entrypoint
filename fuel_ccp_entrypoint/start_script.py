@@ -7,6 +7,7 @@ import logging
 import os
 import pwd
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -243,6 +244,7 @@ def jinja_render_file(path, lookup_paths=None):
         file_loaders.append(jinja2.FileSystemLoader(p))
     env = jinja2.Environment(loader=jinja2.ChoiceLoader(loaders=file_loaders))
     env.globals['address'] = address
+    env.filters['gethostbyname'] = socket.gethostbyname
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
     return content
@@ -251,6 +253,7 @@ def jinja_render_file(path, lookup_paths=None):
 def jinja_render_cmd(cmd):
     env = jinja2.Environment()
     env.globals['address'] = address
+    env.filters['gethostbyname'] = socket.gethostbyname
     return env.from_string(cmd).render(VARIABLES)
 
 
