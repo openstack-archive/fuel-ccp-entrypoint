@@ -19,6 +19,7 @@ import netifaces
 import pykube
 import requests
 import six
+from six.moves.urllib import parse
 
 
 VARIABLES = {}
@@ -146,10 +147,14 @@ def check_is_ready(dep, etcd_client=None):
 
 @retry
 def _check_status(dep, status, etcd_client=None):
+    dep_name, _, dep_type = dep.partition(":")
+    if dep_name in VARIABLES['external_services']:
+        # assuming that external services are ready
+        LOG.info('Skipping external dependency %s' % dep)
+        return True
+    dep_type = VARIABLES['node_name'] if dep_type == 'local' else 'global'
     if not etcd_client:
         etcd_client = get_etcd_client()
-    dep_name, _, dep_type = dep.partition(":")
-    dep_type = VARIABLES['node_name'] if dep_type == 'local' else 'global'
     key = etcd_path(dep_type, dep_name, status)
     return key in etcd_client
 
@@ -216,7 +221,11 @@ def get_ingress_host(ingress_name):
 def address(service, port=None, external=False, with_scheme=False):
     addr = None
     scheme = 'http'
-    if external:
+    ext_addr = VARIABLES['external_services'].get(service)
+    if ext_addr:
+        return ext_addr
+
+    elif external:
         if not port:
             raise RuntimeError('Port config is required for external address')
         if VARIABLES['ingress']['enabled'] and port.get('ingress'):
@@ -294,16 +303,21 @@ def get_etcd_client():
         etcd_machines.append(
             (VARIABLES["network_topology"]["private"]["address"],
              VARIABLES["etcd"]["client_port"]['cont']))
+        scheme = 'http'
     else:
+        etcd_url = parse.urlparse(address(
+            'etcd', VARIABLES["etcd"]["client_port"],
+            with_scheme=True))
         etcd_machines.append(
-            (address('etcd'), VARIABLES["etcd"]["client_port"]['cont'])
+            (etcd_url.hostname, etcd_url.port)
         )
+        scheme = etcd_url.scheme
 
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
     LOG.debug("Using the following etcd urls: \"%s\"", etcd_machines_str)
 
     return etcd.Client(host=tuple(etcd_machines), allow_reconnect=True,
-                       read_timeout=2)
+                       read_timeout=2, protocol=scheme)
 
 
 def check_dependence(dep, etcd_client):
