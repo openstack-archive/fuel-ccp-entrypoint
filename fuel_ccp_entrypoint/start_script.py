@@ -95,7 +95,7 @@ def create_network_topology(meta_info, variables):
        {{ network_topology["public"]["iface"] }}
     """
 
-    if meta_info["host-net"]:
+    if meta_info.get("host-net"):
         LOG.debug("Found 'host-net' flag, trying to fetch host network")
         priv_iface = variables["private_interface"]
         pub_iface = variables["public_interface"]
@@ -444,9 +444,12 @@ def get_variables(role_name):
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = json.load(f)
-    LOG.info("Getting meta information from %s", META_FILE)
-    with open(META_FILE) as f:
-        meta_info = json.load(f)
+    if os.path.exists(META_FILE):
+        LOG.info("Getting meta information from %s", META_FILE)
+        with open(META_FILE) as f:
+            meta_info = json.load(f)
+    else:
+        meta_info = {}
     variables['role_name'] = role_name
     LOG.info("Get CCP environment variables")
     if os.environ.get('CCP_NODE_NAME'):
