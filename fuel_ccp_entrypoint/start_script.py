@@ -99,16 +99,19 @@ def create_network_topology(meta_info, variables):
         LOG.debug("Found 'host-net' flag, trying to fetch host network")
         priv_iface = variables["private_interface"]
         pub_iface = variables["public_interface"]
+        domainname = VARIABLES['cluster_domain']
         network_info = {"private": {"iface": priv_iface,
                                     "address": get_ip_address(priv_iface)},
                         "public": {"iface": pub_iface,
-                                   "address": get_ip_address(pub_iface)}}
+                                   "address": get_ip_address(pub_iface)},
+                        "domainname": domainname}
     else:
         LOG.debug("Can't find 'host-net' flag, fetching ip only from eth0")
         network_info = {"private": {"iface": "eth0",
                                     "address": get_ip_address("eth0")},
                         "public": {"iface": "eth0",
-                                   "address": get_ip_address("eth0")}}
+                                   "address": get_ip_address("eth0")},
+                        "domainname": domainname}
     LOG.debug("Network information\n%s", network_info)
     return network_info
 
