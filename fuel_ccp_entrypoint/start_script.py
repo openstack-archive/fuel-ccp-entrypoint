@@ -452,10 +452,9 @@ def get_variables(role_name):
         meta_info = {}
     variables['role_name'] = role_name
     LOG.info("Get CCP environment variables")
-    if os.environ.get('CCP_NODE_NAME'):
-        variables['node_name'] = os.environ['CCP_NODE_NAME']
-    LOG.debug("Getting meta info from %s", META_FILE)
-    LOG.debug("Creating network topology configuration")
+    variables['node_name'] = os.environ['CCP_NODE_NAME']
+    variables['pod_name'] = os.environ['CCP_POD_NAME']
+    LOG.debug("Creating network topology ")
     variables["network_topology"] = create_network_topology(meta_info,
                                                             variables)
     return variables
