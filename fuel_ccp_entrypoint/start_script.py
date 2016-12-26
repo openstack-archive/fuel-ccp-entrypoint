@@ -14,6 +14,8 @@ import time
 
 import etcd
 import jinja2
+from jinja2.exceptions import TemplateRuntimeError
+from jinja2.ext import Extension
 import json
 import netifaces
 import pykube
@@ -238,11 +240,27 @@ def address(service, port=None, external=False, with_scheme=False):
     return addr
 
 
-def jinja_render_file(path, lookup_paths=None):
+class RaiseExtension(Extension):
+    tags = set(['raise'])
+
+    def parse(self, parser):
+        lineno = next(parser.stream).lineno
+        message_node = parser.parse_expression()
+        return jinja2.nodes.CallBlock(
+            self.call_method('_raise', [message_node], lineno=lineno),
+            [], [], [], lineno=lineno
+        )
+
+    def _raise(self, msg, caller):
+        raise TemplateRuntimeError(msg)
+
+
+def jinja_render_file(path, lookup_paths=()):
     file_loaders = [jinja2.FileSystemLoader(os.path.dirname(path))]
     for p in lookup_paths:
         file_loaders.append(jinja2.FileSystemLoader(p))
-    env = jinja2.Environment(loader=jinja2.ChoiceLoader(loaders=file_loaders))
+    env = jinja2.Environment(extensions=[RaiseExtension],
+                             loader=jinja2.ChoiceLoader(loaders=file_loaders))
     env.globals['address'] = address
     env.filters['gethostbyname'] = socket.gethostbyname
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
