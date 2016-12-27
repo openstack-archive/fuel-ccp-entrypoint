@@ -1,0 +1,9 @@
+Code-Review+2: Proskurin Kirill <kproskurin@mirantis.com>
+Code-Review+2: Yuriy Taraday <yorik.sar@gmail.com>
+Workflow+1: Yuriy Taraday <yorik.sar@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 27 Dec 2016 10:59:04 +0000
+Reviewed-on: https://review.openstack.org/414087
+Project: openstack/fuel-ccp-entrypoint
+Branch: refs/heads/master
