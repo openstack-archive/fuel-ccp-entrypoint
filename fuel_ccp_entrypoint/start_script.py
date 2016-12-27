@@ -238,12 +238,17 @@ def address(service, port=None, external=False, with_scheme=False):
     return addr
 
 
+def j2raise(msg):
+    raise AssertionError(msg)
+
+
 def jinja_render_file(path, lookup_paths=None):
     file_loaders = [jinja2.FileSystemLoader(os.path.dirname(path))]
     for p in lookup_paths:
         file_loaders.append(jinja2.FileSystemLoader(p))
     env = jinja2.Environment(loader=jinja2.ChoiceLoader(loaders=file_loaders))
     env.globals['address'] = address
+    env.globals['raise_exception'] = j2raise
     env.filters['gethostbyname'] = socket.gethostbyname
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
