@@ -462,6 +462,8 @@ def get_variables(role_name):
     LOG.debug("Creating network topology ")
     variables["network_topology"] = create_network_topology(meta_info,
                                                             variables)
+    if "replicas" in meta_info:
+        variables["replicas"] = meta_info["replicas"]
     return variables
 
 
