@@ -165,6 +165,7 @@ class TestGetETCDClient(base.TestCase):
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
+                "tls": False
             },
         }
         with mock.patch("etcd.Client") as m_etcd:
