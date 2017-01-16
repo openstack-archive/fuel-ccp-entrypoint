@@ -24,6 +24,7 @@ import six
 VARIABLES = {}
 GLOBALS_PATH = '/etc/ccp/globals/globals.json'
 META_FILE = "/etc/ccp/meta/meta.json"
+CACERT = "/etc/ccp/etcd_ca.pem"
 WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.json'
 FILES_DIR = '/etc/ccp/files'
 EXPORTS_DIR = '/etc/ccp/exports'
@@ -295,6 +296,9 @@ def get_etcd_client():
     etcd_machines = []
     # if it's etcd container use local address because container is not
     # accessible via service due failed readiness check
+    #
+    # (amnk): since in clustered etcd leader pod is started first, those
+    # connections will fail on a non-leader pod
     if VARIABLES["role_name"] == "etcd":
         etcd_machines.append(
             (VARIABLES["network_topology"]["private"]["address"],
@@ -304,11 +308,18 @@ def get_etcd_client():
             (address('etcd'), VARIABLES["etcd"]["client_port"]['cont'])
         )
 
+    if VARIABLES["etcd"]["tls"]:
+        LOG.debug("TLS is enabled for etcd, using encrypted connectivity")
+        scheme = "https"
+        ca_cert = CACERT
+    else:
+        scheme = "http"
+        ca_cert = None
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
     LOG.debug("Using the following etcd urls: \"%s\"", etcd_machines_str)
 
     return etcd.Client(host=tuple(etcd_machines), allow_reconnect=True,
-                       read_timeout=2)
+                       read_timeout=2, protocol=scheme, ca_cert=ca_cert)
 
 
 def check_dependence(dep, etcd_client):
