@@ -24,6 +24,7 @@ import six
 VARIABLES = {}
 GLOBALS_PATH = '/etc/ccp/globals/globals.json'
 META_FILE = "/etc/ccp/meta/meta.json"
+CACERT = "/opt/ccp/etc/tls/ca.pem"
 WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.json'
 FILES_DIR = '/etc/ccp/files'
 EXPORTS_DIR = '/etc/ccp/exports'
@@ -291,24 +292,39 @@ def create_files(files):
 
 @retry
 def get_etcd_client():
+    if VARIABLES["security"]["tls"]["enabled"]:
+        LOG.debug("TLS is enabled for etcd, using encrypted connectivity")
+        scheme = "https"
+        ca_cert = CACERT
+    else:
+        scheme = "http"
+        ca_cert = None
+
     etcd_machines = []
     # if it's etcd container use local address because container is not
     # accessible via service due failed readiness check
     if VARIABLES["role_name"] in ["etcd", "etcd-leader-elector",
                                   "etcd-watcher"]:
+        if VARIABLES["security"]["tls"]["enabled"]:
+            # If it's etcd container, connectivity goes over IP address, thus
+            # TLS connection will fail. Need to reuse non-TLS
+            # https://github.com/coreos/etcd/issues/4311
+            scheme = "http"
+            ca_cert = None
+            etcd_address = '127.0.0.1'
+        else:
+            etcd_address = VARIABLES["network_topology"]["private"]["address"]
         etcd_machines.append(
-            (VARIABLES["network_topology"]["private"]["address"],
-             VARIABLES["etcd"]["client_port"]['cont']))
+            (etcd_address, VARIABLES["etcd"]["client_port"]['cont']))
     else:
         etcd_machines.append(
             (address('etcd'), VARIABLES["etcd"]["client_port"]['cont'])
         )
-
     etcd_machines_str = " ".join(["%s:%d" % (h, p) for h, p in etcd_machines])
     LOG.debug("Using the following etcd urls: \"%s\"", etcd_machines_str)
 
     return etcd.Client(host=tuple(etcd_machines), allow_reconnect=True,
-                       read_timeout=2)
+                       read_timeout=2, protocol=scheme, ca_cert=ca_cert)
 
 
 def check_dependence(dep, etcd_client):
