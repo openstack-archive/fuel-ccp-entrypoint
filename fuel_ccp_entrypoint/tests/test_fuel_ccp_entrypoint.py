@@ -142,6 +142,11 @@ class TestGetETCDClient(base.TestCase):
                 "private": {
                     "address": "192.0.2.1"
                 }
+            },
+            "security": {
+                "tls": {
+                    "enabled": False
+                }
             }
         }
         with mock.patch("etcd.Client") as m_etcd:
@@ -152,7 +157,9 @@ class TestGetETCDClient(base.TestCase):
             m_etcd.assert_called_once_with(
                 host=(("192.0.2.1", 10042),),
                 allow_reconnect=True,
-                read_timeout=2)
+                read_timeout=2,
+                protocol='http',
+                ca_cert=None)
 
     def test_get_etcd_client(self):
         start_script.VARIABLES = {
@@ -166,6 +173,11 @@ class TestGetETCDClient(base.TestCase):
                 "connection_attempts": 3,
                 "connection_delay": 0,
             },
+            "security": {
+                "tls": {
+                    "enabled": False
+                }
+            }
         }
         with mock.patch("etcd.Client") as m_etcd:
             expected_value = object()
@@ -175,7 +187,9 @@ class TestGetETCDClient(base.TestCase):
             m_etcd.assert_called_once_with(
                 host=(('etcd.ccp.svc.cluster.local', 1234),),
                 allow_reconnect=True,
-                read_timeout=2)
+                read_timeout=2,
+                protocol='http',
+                ca_cert=None)
 
     def test_get_etcd_client_wrong(self):
         start_script.VARIABLES = {
