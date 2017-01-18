@@ -295,7 +295,7 @@ def get_etcd_client():
     etcd_machines = []
     # if it's etcd container use local address because container is not
     # accessible via service due failed readiness check
-    if VARIABLES["role_name"] == "etcd":
+    if VARIABLES["role_name"] in ["etcd", "leader-elector", "etcd-watcher"]:
         etcd_machines.append(
             (VARIABLES["network_topology"]["private"]["address"],
              VARIABLES["etcd"]["client_port"]['cont']))
