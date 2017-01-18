@@ -142,6 +142,11 @@ class TestGetETCDClient(base.TestCase):
                 "private": {
                     "address": "192.0.2.1"
                 }
+            },
+            "security": {
+                "tls": {
+                    "enabled": False
+                }
             }
         }
         with mock.patch("etcd.Client") as m_etcd:
@@ -166,7 +171,12 @@ class TestGetETCDClient(base.TestCase):
                 "connection_attempts": 3,
                 "connection_delay": 0,
             },
-        }
+            "security": {
+                "tls": {
+                    "enabled": False
+                }
+            }
+       }
         with mock.patch("etcd.Client") as m_etcd:
             expected_value = object()
             m_etcd.return_value = expected_value
