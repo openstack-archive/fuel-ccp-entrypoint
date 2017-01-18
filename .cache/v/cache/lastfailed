@@ -1,0 +1,7 @@
+{
+  "fuel_ccp_entrypoint/tests/test_fuel_ccp_entrypoint.py::TestGetETCDClient::test_get_etcd_client": true, 
+  "fuel_ccp_entrypoint/tests/test_fuel_ccp_entrypoint.py::TestGetETCDClient::test_get_etcd_local_client": true, 
+  "fuel_ccp_entrypoint/tests/test_fuel_ccp_entrypoint.py::TestGetETCDClient::test_get_secured_etcd_client": true, 
+  "fuel_ccp_entrypoint/tests/test_fuel_ccp_entrypoint.py::TestRetry::test_retry_failed": true, 
+  "fuel_ccp_entrypoint/tests/test_fuel_ccp_entrypoint.py::TestRetry::test_retry_succeeded": true
+}
