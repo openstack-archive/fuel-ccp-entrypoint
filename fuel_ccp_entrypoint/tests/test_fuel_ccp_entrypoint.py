@@ -85,9 +85,7 @@ class TestGetVariables(base.TestCase):
     @mock.patch('json.load')
     @mock.patch('fuel_ccp_entrypoint.start_script.create_network_topology')
     def test_get_variables(self, m_create_network_topology, m_json_load):
-        def side_effect(file_name):
-            return {'glob': 'glob_val'}
-        m_json_load.return_value = {'glob': 'glob_val'}
+        m_json_load.side_effect = [{'glob': 'glob_val'}, {}]
         m_create_network_topology.return_value = 'network_topology'
         r_value = start_script.get_variables('role')
         e_value = {
@@ -98,6 +96,71 @@ class TestGetVariables(base.TestCase):
             'pod_name': 'pod1'
         }
         self.assertEqual(r_value, e_value)
+
+    @mock.patch('six.moves.builtins.open', mock.mock_open())
+    @mock.patch('json.load')
+    @mock.patch('fuel_ccp_entrypoint.start_script.create_network_topology')
+    def test_get_variables_with_node_config(self, m_create_network_topology,
+                                            m_json_load):
+        m_json_load.side_effect = [
+            # globals
+            {
+                'a': {
+                    'b': {
+                        'c': ['d', 'e', 'f'],
+                        'g': 'h',
+                    },
+                    'i': ['j', 'k'],
+                    'l': 'm'
+                },
+                'n': ['o', 'p', 'q'],
+                'r': 's'
+            },
+            # nodes configs
+            {
+                'node[1-3]': {
+                    'a': {
+                        'b': {
+                            'c': ['e', 'f', 't'],
+                            'u': 'v'
+                        },
+                        'w': {
+                            'x': 'y'
+                        }
+                    },
+                    'n': ['o', 'p'],
+                    'z': 'NaN'
+                },
+                'node[1-2]': {
+                    'aa': {'ab': 'ac'},
+                    'r': {'ad': ['ae', 'af', 'ag']}
+
+                }
+            }
+        ]
+        m_create_network_topology.return_value = 'network_topology'
+        actual = start_script.get_variables('fake_role')
+        expected = {
+            'role_name': 'fake_role',
+            'network_topology': 'network_topology',
+            'node_name': 'node1',
+            'pod_name': 'pod1',
+            'a': {
+                'b': {
+                    'c': ['e', 'f', 't'],
+                    'g': 'h',
+                    'u': 'v'
+                },
+                'w': {'x': 'y'},
+                'i': ['j', 'k'],
+                'l': 'm'
+            },
+            'n': ['o', 'p'],
+            'r': {'ad': ['ae', 'af', 'ag']},
+            'z': 'NaN',
+            'aa': {'ab': 'ac'},
+        }
+        self.assertEqual(expected, actual)
 
 
 class TestRetry(base.TestCase):
