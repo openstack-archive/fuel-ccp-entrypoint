@@ -209,8 +209,7 @@ def execute_cmd(cmd, user=None):
 
 
 def get_ingress_host(ingress_name):
-    return '.'.join((
-        ingress_name, VARIABLES['namespace'], VARIABLES['ingress']['domain']))
+    return '.'.join((ingress_name, VARIABLES['ingress']['domain']))
 
 
 def address(service, port=None, external=False, with_scheme=False):
