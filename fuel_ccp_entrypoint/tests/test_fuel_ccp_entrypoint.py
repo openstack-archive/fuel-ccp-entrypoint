@@ -172,10 +172,16 @@ class TestGetETCDClient(base.TestCase):
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
+                "tls": {
+                    "enabled": True,
+                }
             },
             "security": {
                 "tls": {
-                    "enabled": False
+                    "enabled": False,
+                    "openstack": {
+                        "enabled": False
+                    }
                 }
             }
         }
@@ -202,10 +208,16 @@ class TestGetETCDClient(base.TestCase):
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
+                "tls": {
+                    "enabled": True,
+                }
             },
             "security": {
                 "tls": {
-                    "enabled": True
+                    "enabled": True,
+                    "openstack": {
+                        "enabled": True
+                    }
                 }
             }
         }
