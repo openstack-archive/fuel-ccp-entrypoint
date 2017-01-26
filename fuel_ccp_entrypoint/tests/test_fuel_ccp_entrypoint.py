@@ -236,6 +236,13 @@ class TestGetETCDClient(base.TestCase):
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
+            },
+            "security": {
+                "tls": {
+                    "openstack": {
+                        "enabled": False
+                    }
+                }
             }
         }
         with mock.patch("etcd.Client") as m_etcd:
@@ -264,6 +271,13 @@ class TestGetETCDClient(base.TestCase):
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
+            },
+            "security": {
+                "tls": {
+                    "openstack": {
+                        "enabled": True
+                    }
+                }
             }
         }
         with mock.patch("etcd.Client") as m_etcd:
