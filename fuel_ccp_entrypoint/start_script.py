@@ -213,9 +213,12 @@ def get_ingress_host(ingress_name):
         ingress_name, VARIABLES['namespace'], VARIABLES['ingress']['domain']))
 
 
-def address(service, port=None, external=False, with_scheme=False):
+def address(service, port=None, external=False, with_scheme=False, tls=False):
     addr = None
     scheme = 'http'
+    if tls:
+        if VARIABLES['security']['tls']['enabled']:
+            scheme = 'https'
     if external:
         if not port:
             raise RuntimeError('Port config is required for external address')
