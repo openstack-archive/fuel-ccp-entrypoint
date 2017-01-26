@@ -178,8 +178,10 @@ def openstackclient_preexec_fn():
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
-        os.environ["OS_AUTH_URL"] = 'http://%s/v3' % address(
-            'keystone', VARIABLES['keystone']['admin_port'])
+        if VARIABLES['security']['tls']['openstack']['enabled']:
+            os.environ["OS_CACERT"] = CACERT
+        os.environ["OS_AUTH_URL"] = '%s/v3' % address(
+            'keystone', VARIABLES['keystone']['admin_port'], with_scheme=True)
     return result
 
 
@@ -215,7 +217,15 @@ def get_ingress_host(ingress_name):
 
 def address(service, port=None, external=False, with_scheme=False):
     addr = None
-    scheme = 'http'
+    service_name = service.split('-')[0]
+    TLS_SERVICES = ('keystone', 'glance', 'cinder', 'horizon', 'nova',
+                    'neutron', 'heat')
+
+    if ((VARIABLES['security']['tls']['openstack']['enabled'] and
+         service_name in TLS_SERVICES)):
+        scheme = 'https'
+    else:
+        scheme = 'http'
     if external:
         if not port:
             raise RuntimeError('Port config is required for external address')
@@ -516,11 +526,18 @@ def run_probe(probe):
     if probe["type"] == "exec":
         run_cmd(probe["command"])
     elif probe["type"] == "httpGet":
-        url = "http://{}:{}{}".format(
+        scheme = 'http'
+        verify = True
+        if VARIABLES['security']['tls']['openstack']['enabled']:
+            scheme = 'https'
+            # disable SSL check for probe request
+            verify = False
+        url = "{}://{}:{}{}".format(
+            scheme,
             VARIABLES["network_topology"]["private"]["address"],
             probe["port"],
             probe.get("path", "/"))
-        resp = requests.get(url)
+        resp = requests.get(url, verify=verify)
         resp.raise_for_status()
 
 
