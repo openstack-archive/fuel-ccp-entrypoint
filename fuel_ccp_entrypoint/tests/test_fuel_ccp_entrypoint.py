@@ -175,7 +175,10 @@ class TestGetETCDClient(base.TestCase):
             },
             "security": {
                 "tls": {
-                    "enabled": False
+                    "enabled": False,
+                    "openstack": {
+                        "enabled": False
+                    }
                 }
             }
         }
@@ -205,7 +208,10 @@ class TestGetETCDClient(base.TestCase):
             },
             "security": {
                 "tls": {
-                    "enabled": True
+                    "enabled": True,
+                    "openstack": {
+                        "enabled": True
+                    }
                 }
             }
         }
