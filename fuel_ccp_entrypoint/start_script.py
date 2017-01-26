@@ -10,6 +10,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 
 import etcd
@@ -177,8 +178,18 @@ def openstackclient_preexec_fn():
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
-        os.environ["OS_AUTH_URL"] = 'http://%s/v3' % address(
-            'keystone', VARIABLES['keystone']['admin_port'])
+        scheme = 'http'
+        if VARIABLES['security']['tls']['enabled']:
+            scheme = 'https'
+            # Pass CA cert for using by client, because it's not possible to
+            # specify insecure via environment.
+            # (Alternative solution is to store all certs in the same place.)
+            path = '/tmp/ca.cert'
+            with open(path, 'w') as tmp_cert:
+                tmp_cert.write(VARIABLES['security']['tls']['ca_cert'])
+            os.environ["OS_CACERT"] = path
+        os.environ["OS_AUTH_URL"] = '%s://%s/v3' % (scheme, address(
+            'keystone', VARIABLES['keystone']['admin_port']))
     return result
 
 
@@ -213,9 +224,12 @@ def get_ingress_host(ingress_name):
         ingress_name, VARIABLES['namespace'], VARIABLES['ingress']['domain']))
 
 
-def address(service, port=None, external=False, with_scheme=False):
+def address(service, port=None, external=False, with_scheme=False, tls=False):
     addr = None
     scheme = 'http'
+    if tls:
+        if VARIABLES['security']['tls']['enabled']:
+            scheme = 'https'
     if external:
         if not port:
             raise RuntimeError('Port config is required for external address')
@@ -489,11 +503,18 @@ def run_probe(probe):
     if probe["type"] == "exec":
         run_cmd(probe["command"])
     elif probe["type"] == "httpGet":
-        url = "http://{}:{}{}".format(
+        scheme = 'http'
+        verify = True
+        if VARIABLES['security']['tls']['enabled']:
+            scheme = 'https'
+            # disable SSL check for probe request
+            verify = False
+        url = "{}://{}:{}{}".format(
+            scheme,
             VARIABLES["network_topology"]["private"]["address"],
             probe["port"],
             probe.get("path", "/"))
-        resp = requests.get(url)
+        resp = requests.get(url, verify=verify)
         resp.raise_for_status()
 
 
