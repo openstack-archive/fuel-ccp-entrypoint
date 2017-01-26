@@ -5,6 +5,7 @@ import argparse
 import functools
 import logging
 import os
+import os.path
 import pwd
 import signal
 import socket
@@ -178,8 +179,17 @@ def openstackclient_preexec_fn():
         os.environ["OS_PASSWORD"] = VARIABLES['openstack']['user_password']
         os.environ["OS_USERNAME"] = VARIABLES['openstack']['user_name']
         os.environ["OS_PROJECT_NAME"] = VARIABLES['openstack']['project_name']
-        os.environ["OS_AUTH_URL"] = 'http://%s/v3' % address(
-            'keystone', VARIABLES['keystone']['admin_port'])
+        scheme = 'http'
+        if VARIABLES['security']['tls']['enabled']:
+            scheme = 'https'
+            # Pass CA cert for using by client, because it's not possible to
+            # specify insecure via environment.
+            if not os.path.isfile(fname):
+                with open(CACERT, 'w') as tmp_cert:
+                    tmp_cert.write(VARIABLES['security']['tls']['ca_cert'])
+            os.environ["OS_CACERT"] = CACERT
+        os.environ["OS_AUTH_URL"] = '%s://%s/v3' % (scheme, address(
+            'keystone', VARIABLES['keystone']['admin_port']))
     return result
 
 
@@ -216,6 +226,10 @@ def get_ingress_host(ingress_name):
 def address(service, port=None, external=False, with_scheme=False):
     addr = None
     scheme = 'http'
+    TLS_SERVICES = "keystone,glance,glance,horizon,nova,neutron,cinder,heat"
+    if ((VARIABLES['security']['tls']['enabled'] and
+         service.split('-')[0] in TLS_SERVICES.split(','))):
+        scheme = 'https'
     if external:
         if not port:
             raise RuntimeError('Port config is required for external address')
@@ -504,11 +518,18 @@ def run_probe(probe):
     if probe["type"] == "exec":
         run_cmd(probe["command"])
     elif probe["type"] == "httpGet":
-        url = "http://{}:{}{}".format(
+        scheme = 'http'
+        verify = True
+        if VARIABLES['security']['tls']['enabled']:
+            scheme = 'https'
+            # disable SSL check for probe request
+            verify = False
+        url = "{}://{}:{}{}".format(
+            scheme,
             VARIABLES["network_topology"]["private"]["address"],
             probe["port"],
             probe.get("path", "/"))
-        resp = requests.get(url)
+        resp = requests.get(url, verify=verify)
         resp.raise_for_status()
 
 
