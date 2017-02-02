@@ -518,14 +518,13 @@ def do_status(role_name):
 
 def do_provision(role_name):
     workflow = get_workflow(role_name)
+    files = workflow.get('files', [])
+    create_files(files)
 
     dependencies = workflow.get('dependencies')
     if dependencies:
         etcd_client = get_etcd_client()
         wait_for_dependencies(dependencies, etcd_client)
-
-    files = workflow.get('files', [])
-    create_files(files)
 
     job = workflow.get("job")
     daemon = workflow.get("daemon")
