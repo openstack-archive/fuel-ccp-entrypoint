@@ -6,6 +6,7 @@ import functools
 import logging
 import os
 import pwd
+import re
 import signal
 import socket
 import subprocess
@@ -23,6 +24,7 @@ import six
 
 VARIABLES = {}
 GLOBALS_PATH = '/etc/ccp/globals/globals.json'
+NODES_CONFIG_PATH = '/etc/ccp/nodes-config/nodes-config.json'
 META_FILE = "/etc/ccp/meta/meta.json"
 CACERT = "/opt/ccp/etc/tls/ca.pem"
 WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.json'
@@ -461,10 +463,43 @@ def get_workflow(role_name):
     return workflow
 
 
+def find_node_config_keys(nodes_config):
+    current_node = os.environ['CCP_NODE_NAME']
+    config_keys = []
+    for node in sorted(nodes_config):
+        if re.match(node, current_node):
+            config_keys.append(node)
+    return config_keys
+
+
+def merge_nodes_configs(variables, node_config):
+    for k, v in node_config.items():
+        if k not in variables:
+            variables[k] = v
+            continue
+        if isinstance(v, dict) and isinstance(variables[k], dict):
+            merge_nodes_configs(variables[k], v)
+        else:
+            variables[k] = v
+
+
 def get_variables(role_name):
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = json.load(f)
+    LOG.info("Getting nodes variables from %s", NODES_CONFIG_PATH)
+    with open(NODES_CONFIG_PATH) as f:
+        nodes_config = json.load(f)
+    config_keys = find_node_config_keys(nodes_config)
+    if config_keys:
+        # merge configs for all keys and get final node_configs for this node.
+        # Note that if there several override configs, variables will be
+        # override with order of list this configs.
+        node_config = nodes_config[config_keys.pop(0)]
+        for key in config_keys:
+            merge_nodes_configs(node_config, nodes_config[key])
+        # and then merge variables with final node_config.
+        merge_nodes_configs(variables, node_config)
     if os.path.exists(META_FILE):
         LOG.info("Getting meta information from %s", META_FILE)
         with open(META_FILE) as f:
