@@ -93,7 +93,8 @@ class TestGetVariables(base.TestCase):
             'role_name': 'role',
             'network_topology': 'network_topology',
             'node_name': 'node1',
-            'pod_name': 'pod1'
+            'pod_name': 'pod1',
+            'service_name': None
         }
         self.assertEqual(r_value, e_value)
 
@@ -145,6 +146,7 @@ class TestGetVariables(base.TestCase):
             'network_topology': 'network_topology',
             'node_name': 'node1',
             'pod_name': 'pod1',
+            'service_name': None,
             'a': {
                 'b': {
                     'c': ['e', 'f', 't'],
@@ -227,6 +229,8 @@ class TestGetETCDClient(base.TestCase):
             "role_name": "banana",
             "namespace": "ccp",
             "cluster_domain": 'cluster.local',
+            "services": {},
+            "service_name": "test",
             "etcd": {
                 "tls": {
                     "enabled": False
@@ -255,6 +259,8 @@ class TestGetETCDClient(base.TestCase):
             "role_name": "banana",
             "namespace": "ccp",
             "cluster_domain": 'cluster.local',
+            "services": {},
+            "service_name": "test",
             "etcd": {
                 "tls": {
                     "enabled": True
