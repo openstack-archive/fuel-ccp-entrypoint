@@ -99,7 +99,8 @@ class TestGetVariables(base.TestCase):
             'node_name': 'node1',
             'pod_name': 'pod1',
             'cpu_limit': '4',
-            'memory_limit': '7859277824'
+            'memory_limit': '7859277824',
+            'service_name': None
         }
         self.assertEqual(r_value, e_value)
 
@@ -153,6 +154,7 @@ class TestGetVariables(base.TestCase):
             'cpu_limit': '4',
             'memory_limit': '7859277824',
             'pod_name': 'pod1',
+            'service_name': None,
             'a': {
                 'b': {
                     'c': ['e', 'f', 't'],
@@ -235,6 +237,8 @@ class TestGetETCDClient(base.TestCase):
             "role_name": "banana",
             "namespace": "ccp",
             "cluster_domain": 'cluster.local',
+            "services": {},
+            "service_name": "test",
             "etcd": {
                 "tls": {
                     "enabled": False
@@ -263,6 +267,8 @@ class TestGetETCDClient(base.TestCase):
             "role_name": "banana",
             "namespace": "ccp",
             "cluster_domain": 'cluster.local',
+            "services": {},
+            "service_name": "test",
             "etcd": {
                 "tls": {
                     "enabled": True
