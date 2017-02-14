@@ -236,6 +236,15 @@ def address(service, port=None, external=False, with_scheme=False):
         elif port.get('node'):
             addr = '%s:%s' % (VARIABLES['k8s_external_ip'], port['node'])
 
+    current_service = VARIABLES['service_name']
+    if current_service:
+        current_service_def = VARIABLES['services'].get(
+            current_service, {}).get('service_def')
+        if current_service_def == service:
+            service = current_service
+        else:
+            service = VARIABLES['services'].get(current_service, {}).get(
+                'mapping', {}).get(service) or service
     if addr is None:
         addr = '.'.join((service, VARIABLES['namespace'], 'svc',
                          VARIABLES['cluster_domain']))
@@ -521,6 +530,7 @@ def get_variables(role_name):
     LOG.debug("Creating network topology ")
     variables["network_topology"] = create_network_topology(meta_info,
                                                             variables)
+    variables["service_name"] = meta_info.get('service-name')
     return variables
 
 
