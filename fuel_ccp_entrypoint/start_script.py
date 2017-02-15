@@ -294,7 +294,7 @@ def create_files(files):
 
 @retry
 def get_etcd_client():
-    if VARIABLES["security"]["tls"]["enabled"]:
+    if VARIABLES["etcd"]["tls"]["enabled"]:
         LOG.debug("TLS is enabled for etcd, using encrypted connectivity")
         scheme = "https"
         ca_cert = CACERT
@@ -307,7 +307,7 @@ def get_etcd_client():
     # accessible via service due failed readiness check
     if VARIABLES["role_name"] in ["etcd", "etcd-leader-elector",
                                   "etcd-watcher"]:
-        if VARIABLES["security"]["tls"]["enabled"]:
+        if VARIABLES["etcd"]["tls"]["enabled"]:
             # If it's etcd container, connectivity goes over IP address, thus
             # TLS connection will fail. Need to reuse non-TLS
             # https://github.com/coreos/etcd/issues/4311
@@ -526,6 +526,16 @@ def _get_ca_certificate():
         LOG.info("CA file exists, not overwriting it")
 
 
+def check_tls_options():
+    for s in ('etcd', 'rabbitmq', 'galera'):
+        if VARIABLES.get(s) and VARIABLES[s]['tls']['enabled']:
+            return True
+    if ((VARIABLES['security']['tls'].get('openstack') and
+         VARIABLES['security']['tls']['openstack']['enabled'])):
+        return True
+    return False
+
+
 def main():
     action_parser = argparse.ArgumentParser(add_help=False)
     action_parser.add_argument("action")
@@ -537,7 +547,7 @@ def main():
     VARIABLES = get_variables(args.role)
     LOG.debug('Global variables:\n%s', VARIABLES)
 
-    if VARIABLES["security"]["tls"]["enabled"]:
+    if check_tls_options():
         _get_ca_certificate()
     if args.action == "provision":
         do_provision(args.role)
