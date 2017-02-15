@@ -195,6 +195,9 @@ class TestGetETCDClient(base.TestCase):
         start_script.VARIABLES = {
             "role_name": "etcd",
             "etcd": {
+                "tls": {
+                    "enabled": False
+                },
                 "client_port": {
                     "cont": 10042
                 },
@@ -204,11 +207,6 @@ class TestGetETCDClient(base.TestCase):
             "network_topology": {
                 "private": {
                     "address": "192.0.2.1"
-                }
-            },
-            "security": {
-                "tls": {
-                    "enabled": False
                 }
             }
         }
@@ -230,16 +228,14 @@ class TestGetETCDClient(base.TestCase):
             "namespace": "ccp",
             "cluster_domain": 'cluster.local',
             "etcd": {
+                "tls": {
+                    "enabled": False
+                },
                 "client_port": {
                     "cont": 1234
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
-            },
-            "security": {
-                "tls": {
-                    "enabled": False
-                }
             }
         }
         with mock.patch("etcd.Client") as m_etcd:
@@ -260,16 +256,14 @@ class TestGetETCDClient(base.TestCase):
             "namespace": "ccp",
             "cluster_domain": 'cluster.local',
             "etcd": {
+                "tls": {
+                    "enabled": True
+                },
                 "client_port": {
                     "cont": 1234
                 },
                 "connection_attempts": 3,
                 "connection_delay": 0,
-            },
-            "security": {
-                "tls": {
-                    "enabled": True
-                }
             }
         }
         with mock.patch("etcd.Client") as m_etcd:
