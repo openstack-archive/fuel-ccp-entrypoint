@@ -567,7 +567,7 @@ def run_probe(probe):
                 probe.get("path", "/"))
         }
         if scheme == "https":
-            kwargs['verify'] = CACERT
+            kwargs['verify'] = False
         resp = requests.get(**kwargs)
         resp.raise_for_status()
 
