@@ -219,7 +219,8 @@ def get_ingress_host(ingress_name):
 
 def address(service, port=None, external=False, with_scheme=False):
     addr = None
-    enable_tls = VARIABLES.get(service, {}).get('tls', {}).get('enabled')
+    service_name = service.split('-')[0]
+    enable_tls = VARIABLES.get(service_name, {}).get('tls', {}).get('enabled')
 
     if enable_tls:
         scheme = 'https'
