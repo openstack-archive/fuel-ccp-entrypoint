@@ -551,11 +551,17 @@ def run_probe(probe):
     if probe["type"] == "exec":
         run_cmd(probe["command"])
     elif probe["type"] == "httpGet":
-        url = "http://{}:{}{}".format(
-            VARIABLES["network_topology"]["private"]["address"],
-            probe["port"],
-            probe.get("path", "/"))
-        resp = requests.get(url)
+        scheme = probe.get("scheme", "http")
+        kwargs = {
+            "url": "{}://{}:{}{}".format(
+                scheme,
+                VARIABLES["network_topology"]["private"]["address"],
+                probe["port"],
+                probe.get("path", "/"))
+        }
+        if scheme == "https":
+            kwargs['cert'] = CACERT
+        resp = requests.get(**kwargs)
         resp.raise_for_status()
 
 
