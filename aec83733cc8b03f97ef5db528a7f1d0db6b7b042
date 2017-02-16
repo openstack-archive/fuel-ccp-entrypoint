@@ -1,0 +1,10 @@
+Code-Review+1: Sergey Kraynev <skraynev@mirantis.com>
+Code-Review+2: Proskurin Kirill <kproskurin@mirantis.com>
+Code-Review+2: Sergey Reshetnyak <sreshetniak@mirantis.com>
+Workflow+1: Sergey Reshetnyak <sreshetniak@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 16 Feb 2017 09:31:10 +0000
+Reviewed-on: https://review.openstack.org/434479
+Project: openstack/fuel-ccp-entrypoint
+Branch: refs/heads/master
