@@ -25,6 +25,7 @@ import six
 VARIABLES = {}
 GLOBALS_PATH = '/etc/ccp/globals/globals.json'
 NODES_CONFIG_PATH = '/etc/ccp/nodes-config/nodes-config.json'
+SERVICE_CONFIG_PATH = '/etc/ccp/service-config/service-config.json'
 META_FILE = "/etc/ccp/meta/meta.json"
 CACERT = "/opt/ccp/etc/tls/ca.pem"
 WORKFLOW_PATH_TEMPLATE = '/etc/ccp/role/%s.json'
@@ -489,13 +490,13 @@ def find_node_config_keys(nodes_config):
     return config_keys
 
 
-def merge_nodes_configs(variables, node_config):
+def merge_configs(variables, node_config):
     for k, v in node_config.items():
         if k not in variables:
             variables[k] = v
             continue
         if isinstance(v, dict) and isinstance(variables[k], dict):
-            merge_nodes_configs(variables[k], v)
+            merge_configs(variables[k], v)
         else:
             variables[k] = v
 
@@ -504,6 +505,11 @@ def get_variables(role_name):
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = json.load(f)
+    if os.path.isfile(SERVICE_CONFIG_PATH):
+        LOG.info("Getting service variables from %s", SERVICE_CONFIG_PATH)
+        with open(SERVICE_CONFIG_PATH) as f:
+            service_config = json.load(f)
+        merge_configs(variables, service_config)
     LOG.info("Getting nodes variables from %s", NODES_CONFIG_PATH)
     with open(NODES_CONFIG_PATH) as f:
         nodes_config = json.load(f)
@@ -514,9 +520,9 @@ def get_variables(role_name):
         # override with order of list this configs.
         node_config = nodes_config[config_keys.pop(0)]
         for key in config_keys:
-            merge_nodes_configs(node_config, nodes_config[key])
+            merge_configs(node_config, nodes_config[key])
         # and then merge variables with final node_config.
-        merge_nodes_configs(variables, node_config)
+        merge_configs(variables, node_config)
     if os.path.exists(META_FILE):
         LOG.info("Getting meta information from %s", META_FILE)
         with open(META_FILE) as f:
