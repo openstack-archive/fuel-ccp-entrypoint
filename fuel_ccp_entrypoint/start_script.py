@@ -259,6 +259,8 @@ def jinja_render_file(path, lookup_paths=None):
     env = jinja2.Environment(loader=jinja2.ChoiceLoader(loaders=file_loaders))
     env.globals['address'] = address
     env.globals['raise_exception'] = j2raise
+    environ = os.environ.copy()
+    env.globals.update(environ)
     env.filters['gethostbyname'] = socket.gethostbyname
     content = env.get_template(os.path.basename(path)).render(VARIABLES)
 
