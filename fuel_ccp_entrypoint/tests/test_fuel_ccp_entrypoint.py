@@ -75,11 +75,15 @@ class TestGetVariables(base.TestCase):
         super(TestGetVariables, self).setUp()
         os.environ['CCP_NODE_NAME'] = 'node1'
         os.environ['CCP_POD_NAME'] = 'pod1'
+        os.environ['MEMORY_LIMIT'] = '7859277824'
+        os.environ['CPU_LIMIT'] = '4'
 
     def tearDown(self):
         super(TestGetVariables, self).tearDown()
         del os.environ['CCP_NODE_NAME']
         del os.environ['CCP_POD_NAME']
+        del os.environ['MEMORY_LIMIT']
+        del os.environ['CPU_LIMIT']
 
     @mock.patch('six.moves.builtins.open', mock.mock_open())
     @mock.patch('json.load')
@@ -93,7 +97,9 @@ class TestGetVariables(base.TestCase):
             'role_name': 'role',
             'network_topology': 'network_topology',
             'node_name': 'node1',
-            'pod_name': 'pod1'
+            'pod_name': 'pod1',
+            'cpu_limit': '4',
+            'memory_limit': '7859277824'
         }
         self.assertEqual(r_value, e_value)
 
@@ -144,6 +150,8 @@ class TestGetVariables(base.TestCase):
             'role_name': 'fake_role',
             'network_topology': 'network_topology',
             'node_name': 'node1',
+            'cpu_limit': '4',
+            'memory_limit': '7859277824',
             'pod_name': 'pod1',
             'a': {
                 'b': {
