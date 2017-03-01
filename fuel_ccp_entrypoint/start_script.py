@@ -518,6 +518,8 @@ def get_variables(role_name):
     LOG.info("Get CCP environment variables")
     variables['node_name'] = os.environ['CCP_NODE_NAME']
     variables['pod_name'] = os.environ['CCP_POD_NAME']
+    variables['MEMORY_LIMIT'] = os.environ['MEMORY_LIMIT']
+    variables['CPU_LIMIT'] = os.environ['CPU_LIMIT']
     LOG.debug("Creating network topology ")
     variables["network_topology"] = create_network_topology(meta_info,
                                                             variables)
