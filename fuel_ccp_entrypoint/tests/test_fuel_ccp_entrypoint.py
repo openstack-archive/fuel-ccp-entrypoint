@@ -75,11 +75,15 @@ class TestGetVariables(base.TestCase):
         super(TestGetVariables, self).setUp()
         os.environ['CCP_NODE_NAME'] = 'node1'
         os.environ['CCP_POD_NAME'] = 'pod1'
+        os.environ['MEMORU_LIMIT'] = '7859277824'
+        os.environ['CPU_LIMIT'] = '4'
 
     def tearDown(self):
         super(TestGetVariables, self).tearDown()
         del os.environ['CCP_NODE_NAME']
         del os.environ['CCP_POD_NAME']
+        del os.environ['MEMORY_LIMIT']
+        del os.environ['CPU_LIMIT']
 
     @mock.patch('six.moves.builtins.open', mock.mock_open())
     @mock.patch('json.load')
