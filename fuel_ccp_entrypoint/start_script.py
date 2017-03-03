@@ -24,6 +24,7 @@ import six
 
 VARIABLES = {}
 GLOBALS_PATH = '/etc/ccp/globals/globals.json'
+GLOBALS_SECRETS_PATH = '/etc/ccp/global-secrets/global-secrets.json'
 NODES_CONFIG_PATH = '/etc/ccp/nodes-config/nodes-config.json'
 SERVICE_CONFIG_PATH = '/etc/ccp/service-config/service-config.json'
 META_FILE = "/etc/ccp/meta/meta.json"
@@ -505,6 +506,9 @@ def get_variables(role_name):
     LOG.info("Getting global variables from %s", GLOBALS_PATH)
     with open(GLOBALS_PATH) as f:
         variables = json.load(f)
+    with open(GLOBALS_SECRETS_PATH) as f:
+        secrets = json.load(f)
+    merge_configs(variables, secrets)
     if os.path.isfile(SERVICE_CONFIG_PATH):
         LOG.info("Getting service variables from %s", SERVICE_CONFIG_PATH)
         with open(SERVICE_CONFIG_PATH) as f:
