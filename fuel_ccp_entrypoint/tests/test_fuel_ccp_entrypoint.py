@@ -89,7 +89,7 @@ class TestGetVariables(base.TestCase):
     @mock.patch('json.load')
     @mock.patch('fuel_ccp_entrypoint.start_script.create_network_topology')
     def test_get_variables(self, m_create_network_topology, m_json_load):
-        m_json_load.side_effect = [{'glob': 'glob_val'}, {}]
+        m_json_load.side_effect = [{'glob': 'glob_val'}, {}, {}]
         m_create_network_topology.return_value = 'network_topology'
         r_value = start_script.get_variables('role')
         e_value = {
@@ -123,6 +123,7 @@ class TestGetVariables(base.TestCase):
                 'n': ['o', 'p', 'q'],
                 'r': 's'
             },
+            {},
             # nodes configs
             {
                 'node[1-3]': {
