@@ -1,7 +1,0 @@
-[run]
-branch = True
-source = fuel_ccp_entrypoint
-omit = fuel_ccp_entrypoint/openstack/*
-
-[report]
-ignore_errors = True
